@@ -258,10 +258,10 @@ export default async function HomePage({ searchParams }) {
 
               <div className="flex flex-col gap-1">
                 <p className="text-base sm:text-lg lg:text-xl font-semibold text-slate-100 leading-snug">
-                  Temukan pemilik baru dari sesama mahasiswa.
+                  Temukan pemilik baru dari sesama Mahasiswa.
                 </p>
                 <p className="text-xs sm:text-sm md:text-[15px] text-slate-200 leading-relaxed max-w-lg">
-                  Marketplace preloved khusus mahasiswa untuk jual beli langsung antarmahasiswa. Cek barang langsung saat COD sekampus.
+                  Marketplace preloved khusus Mahasiswa untuk jual beli langsung antar Mahasiswa. Cek barang langsung saat COD sekampus.
                 </p>
               </div>
 

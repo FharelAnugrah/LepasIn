@@ -6,11 +6,11 @@ import { Laptop, BedDouble, BookOpen, Cpu, Sparkles } from 'lucide-react';
 
 /**
  * HeroShowcaseBadges
- * Showcase 3D melayang interaktif untuk kategori barang preloved mahasiswa.
+ * Showcase 3D melayang interaktif untuk kategori barang preloved Mahasiswa.
  * Menampilkan:
  * 1. Luminous backdrop glowing disc.
  * 2. Cincin orbit konsentris.
- * 3. 4 Badge kategori barang mahasiswa (Laptop, Perabot, Buku, Elektronik) dengan efek Glass 3D.
+ * 3. 4 Badge kategori barang Mahasiswa (Laptop, Perabot, Buku, Elektronik) dengan efek Glass 3D.
  * 4. Starburst badge aksen emas "Hemat s/d 70%".
  * 5. Interaksi 3D tilt responsif terhadap pergerakan kursor mouse.
  */
@@ -96,7 +96,7 @@ export default function HeroShowcaseBadges() {
       ref={containerRef}
       className="relative w-full max-w-[340px] sm:max-w-[380px] h-[280px] sm:h-[300px] flex items-center justify-center select-none"
       style={{ perspective: '1000px' }}
-      aria-label="Showcase kategori barang preloved mahasiswa"
+      aria-label="Showcase kategori barang preloved Mahasiswa"
     >
       {/* Container Berputar Sesuai Tilt Kursor */}
       <div
