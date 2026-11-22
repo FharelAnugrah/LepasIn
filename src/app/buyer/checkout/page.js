@@ -51,7 +51,12 @@ export default async function BuyerCheckoutPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas text-ink">
-      <Navbar user={buyer} cartCount={cartCount} showSearchBar={false} />
+      <Navbar
+        user={buyer}
+        cartCount={cartCount}
+        showSearchBar={false}
+        showCampusSelector={false}
+      />
 
       <main
         id="main-content"

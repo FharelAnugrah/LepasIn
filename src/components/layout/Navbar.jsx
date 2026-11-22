@@ -50,6 +50,7 @@ export default function Navbar({
   selectedCampus = null,
   campuses = null,
   showSearchBar = true,
+  showCampusSelector = true,
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -223,15 +224,17 @@ export default function Navbar({
             />
           </Link>
 
-          <div className="hidden md:block max-w-[190px] lg:max-w-[230px]">
-            <CampusSelector
-              value={selectedCampus}
-              onChange={handleCampusChange}
-              campuses={campuses}
-              allowAll={true}
-              allLabel="Semua Kampus"
-            />
-          </div>
+          {showCampusSelector && (
+            <div className="hidden md:block max-w-[190px] lg:max-w-[230px]">
+              <CampusSelector
+                value={selectedCampus}
+                onChange={handleCampusChange}
+                campuses={campuses}
+                allowAll={true}
+                allLabel="Semua Kampus"
+              />
+            </div>
+          )}
         </div>
 
         {/* Tengah: Search Bar Tablet & Desktop */}
@@ -447,9 +450,22 @@ export default function Navbar({
                 aria-haspopup="menu"
                 aria-label="Menu akun pengguna"
               >
-                <span className="w-7 h-7 rounded-lg icon-plinth-navy text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
-                  {user.name ? user.name.charAt(0) : 'U'}
-                </span>
+                {user?.avatar_url ? (
+                  <span className="relative w-7 h-7 rounded-lg overflow-hidden shrink-0 border border-border-subtle bg-surface-muted block">
+                    <Image
+                      src={user.avatar_url}
+                      alt={user.name || 'Avatar'}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                      sizes="28px"
+                    />
+                  </span>
+                ) : (
+                  <span className="w-7 h-7 rounded-lg icon-plinth-navy text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                    {user.name ? user.name.charAt(0) : 'U'}
+                  </span>
+                )}
                 <span className="hidden lg:flex flex-col text-left">
                   <span className="text-xs font-semibold text-ink line-clamp-1 max-w-[110px]">
                     {user.name}
@@ -607,28 +623,32 @@ export default function Navbar({
       </div>
 
       {/* Baris Pencarian & Selektor Kampus di Mobile (< md) */}
-      <div className="md:hidden px-3 sm:px-4 pb-3 pt-1 flex items-center gap-2 border-t border-border-subtle/60 bg-surface">
-        <div className="flex-1 min-w-0">
-          <CampusSelector
-            value={selectedCampus}
-            onChange={handleCampusChange}
-            campuses={campuses}
-            allowAll={true}
-            allLabel="Semua Kampus"
-            fullWidth={true}
-            className="w-full"
-          />
+      {(showCampusSelector || showSearchBar) && (
+        <div className="md:hidden px-3 sm:px-4 pb-3 pt-1 flex items-center gap-2 border-t border-border-subtle/60 bg-surface">
+          {showCampusSelector && (
+            <div className="flex-1 min-w-0">
+              <CampusSelector
+                value={selectedCampus}
+                onChange={handleCampusChange}
+                campuses={campuses}
+                allowAll={true}
+                allLabel="Semua Kampus"
+                fullWidth={true}
+                className="w-full"
+              />
+            </div>
+          )}
+          {showSearchBar && (
+            <Link
+              href="/products"
+              className="w-11 h-11 rounded-full bg-surface-muted border border-border-subtle flex items-center justify-center text-ink-secondary hover:text-ink shrink-0 transition-colors"
+              aria-label="Cari produk di katalog"
+            >
+              <Search className="w-4 h-4" aria-hidden="true" />
+            </Link>
+          )}
         </div>
-        {showSearchBar && (
-          <Link
-            href="/products"
-            className="w-11 h-11 rounded-full bg-surface-muted border border-border-subtle flex items-center justify-center text-ink-secondary hover:text-ink shrink-0 transition-colors"
-            aria-label="Cari produk di katalog"
-          >
-            <Search className="w-4 h-4" aria-hidden="true" />
-          </Link>
-        )}
-      </div>
+      )}
     </header>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -46,6 +47,12 @@ export default function BuyerDashboardShell({
       isActive: pathname.startsWith('/buyer/wishlist'),
     },
     {
+      label: 'Chat Penjual',
+      href: '/chat',
+      icon: MessageCircle,
+      isActive: pathname.startsWith('/chat'),
+    },
+    {
       label: 'Profil & Kampus',
       href: '/buyer/profile',
       icon: User,
@@ -56,12 +63,6 @@ export default function BuyerDashboardShell({
       href: '/buyer/addresses',
       icon: MapPin,
       isActive: pathname.startsWith('/buyer/addresses'),
-    },
-    {
-      label: 'Chat Penjual',
-      href: '/chat',
-      icon: MessageCircle,
-      isActive: pathname.startsWith('/chat'),
     },
   ];
 
@@ -77,19 +78,37 @@ export default function BuyerDashboardShell({
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas text-ink">
-      <Navbar user={user} cartCount={cartCount} showSearchBar={true} />
+      <Navbar
+        user={user}
+        cartCount={cartCount}
+        showSearchBar={false}
+        showCampusSelector={false}
+      />
 
-      <div className="flex-1 flex flex-col lg:flex-row">
+      <div className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 md:py-7 flex flex-col lg:flex-row gap-6 lg:gap-8">
         {/* Desktop Left Sidebar (design2.md 5.8) */}
         <aside
           aria-label="Navigasi akun pembeli"
-          className="hidden lg:flex lg:flex-col w-64 shrink-0 bg-surface border-r border-border-subtle p-4 justify-between gap-6 sticky-sidebar-flush"
+          className="hidden lg:flex lg:flex-col w-64 shrink-0 surface-3d rounded-2xl p-4 justify-between gap-6 sticky-sidebar-panel"
         >
           <div className="flex flex-col gap-5">
             <div className="p-3 rounded-2xl surface-3d flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl icon-plinth-navy text-white font-bold text-sm flex items-center justify-center uppercase shrink-0">
-                {user.name ? user.name.charAt(0) : 'B'}
-              </div>
+              {user?.avatar_url ? (
+                <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-border-subtle bg-surface-muted shadow-inner">
+                  <Image
+                    src={user.avatar_url}
+                    alt={user.name || 'Avatar'}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                    sizes="40px"
+                  />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-xl icon-plinth-navy text-white font-bold text-sm flex items-center justify-center uppercase shrink-0">
+                  {user.name ? user.name.charAt(0) : 'B'}
+                </div>
+              )}
               <div className="min-w-0">
                 <p className="text-xs font-bold text-ink truncate">{user.name}</p>
                 <p className="text-[11px] text-brand-blue font-semibold truncate flex items-center gap-1 mt-0.5">
@@ -148,7 +167,7 @@ export default function BuyerDashboardShell({
           {/* Mobile Horizontal Scrollable Tab Navigation (design2.md 5.8) */}
           <nav
             aria-label="Menu akun pembeli"
-            className="lg:hidden bg-surface border-b border-border-subtle px-4 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar"
+            className="lg:hidden bg-surface border border-border-subtle rounded-2xl p-1.5 mb-5 flex items-center gap-2 overflow-x-auto no-scrollbar shadow-xs"
           >
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -173,7 +192,7 @@ export default function BuyerDashboardShell({
           <main
             id="main-content"
             tabIndex={-1}
-            className="flex-1 bg-canvas p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto outline-none"
+            className="flex-1 outline-none"
           >
             {children}
           </main>
