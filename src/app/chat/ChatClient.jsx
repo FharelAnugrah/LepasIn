@@ -16,6 +16,7 @@ import {
   ChevronUp,
   MessageSquare,
   ExternalLink,
+  Zap,
 } from 'lucide-react';
 import Badge, {
   PricePill,
@@ -423,6 +424,7 @@ export default function ChatClient({
       if (isBuyer) {
         return [
           'Siap COD hari ini?',
+          'Bisa ketemuan jam berapa?',
           campus ? `Ketemuan di Perpustakaan (${campus})?` : 'Ketemuan di Perpustakaan Pusat?',
           campus ? `Ketemuan di Gerbang Utama (${campus})?` : 'Ketemuan di Pintu Gerbang Utama?',
           'Saya sudah di titik temu COD.',
@@ -432,6 +434,7 @@ export default function ChatClient({
           'Barang siap untuk COD hari ini.',
           'Bisa ketemuan jam berapa?',
           campus ? `Standby di Perpustakaan (${campus}).` : 'Standby di Perpustakaan Pusat.',
+          campus ? `Standby di Gerbang Utama (${campus}).` : 'Standby di Pintu Gerbang Utama.',
           'Saya sudah di titik temu COD.',
         ];
       }
@@ -462,16 +465,19 @@ export default function ChatClient({
           activeTarget ? 'hidden md:flex' : 'flex'
         }`}
       >
-        <div className="p-4 border-b border-border-subtle bg-surface shrink-0">
-          <div className="flex items-center justify-between mb-2.5">
-            <h1 className="text-base font-bold text-ink flex items-center gap-2">
-              <MessageCircle className="w-5 h-5 text-brand-blue" aria-hidden="true" />
-              <span>Pesan dan Koordinasi</span>
-            </h1>
-            <span className="text-xs font-semibold bg-brand-blue-soft text-brand-blue px-2 py-0.5 rounded-md tabular-nums">
-              {displayConversations.length}
-            </span>
-          </div>
+        {/* Top Bar Kiri: Sejajar persis dengan Top Bar Kanan (h-[65px]) */}
+        <div className="h-[65px] min-h-[65px] px-4 border-b border-border-subtle bg-surface flex items-center justify-between shrink-0">
+          <h1 className="text-base font-bold text-ink flex items-center gap-2">
+            <MessageCircle className="w-5 h-5 text-brand-blue" aria-hidden="true" />
+            <span>Pesan dan Koordinasi</span>
+          </h1>
+          <span className="text-xs font-semibold bg-brand-blue-soft text-brand-blue px-2 py-0.5 rounded-md tabular-nums">
+            {displayConversations.length}
+          </span>
+        </div>
+
+        {/* Sub-bar Filter Pencarian */}
+        <div className="p-3 border-b border-border-subtle bg-canvas shrink-0">
           <label htmlFor="chat-search-input" className="sr-only">
             Cari percakapan
           </label>
@@ -481,7 +487,7 @@ export default function ChatClient({
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             placeholder="Cari toko, barang, atau pembeli..."
-            className="w-full h-10 text-base md:text-sm px-3.5 bg-surface-muted text-ink placeholder:text-ink-subtle rounded-lg border border-transparent focus:bg-surface focus:border-brand-blue focus:ring-2 focus:ring-brand-blue-soft outline-none transition-colors"
+            className="w-full h-9 text-base md:text-xs px-3 bg-surface text-ink placeholder:text-ink-muted rounded-xl border border-border-subtle focus:bg-surface focus:border-brand-blue focus:ring-2 focus:ring-brand-blue-soft outline-none transition-all"
           />
         </div>
 
@@ -592,23 +598,33 @@ export default function ChatClient({
         }`}
       >
         {!activeTarget ? (
-          <div className="p-8 text-center max-w-sm flex flex-col items-center">
-            <div className="w-14 h-14 rounded-xl bg-brand-blue-soft text-brand-blue border border-brand-blue-border flex items-center justify-center mb-4">
-              <MessageCircle className="w-7 h-7" aria-hidden="true" />
+          <>
+            <div className="h-[65px] min-h-[65px] px-4 border-b border-border-subtle bg-surface hidden md:flex items-center shrink-0">
+              <span className="text-xs font-semibold text-ink-muted">Ruang Percakapan</span>
             </div>
-            <h2 className="text-base font-bold text-ink mb-1">Pilih Percakapan</h2>
-            <p className="text-xs text-ink-muted">
-              Pilih salah satu percakapan di daftar kiri untuk koordinasi pesanan atau tanya produk.
-            </p>
-          </div>
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-sm mx-auto">
+              <div className="w-14 h-14 rounded-xl bg-brand-blue-soft text-brand-blue border border-brand-blue-border flex items-center justify-center mb-4">
+                <MessageCircle className="w-7 h-7" aria-hidden="true" />
+              </div>
+              <h2 className="text-base font-bold text-ink mb-1">Pilih Percakapan</h2>
+              <p className="text-xs text-ink-muted">
+                Pilih salah satu percakapan di daftar kiri untuk koordinasi pesanan atau tanya produk.
+              </p>
+            </div>
+          </>
         ) : loadingChat && !activeChat ? (
-          <div className="flex-1 flex items-center justify-center text-xs text-ink-muted">
-            Memuat ruang obrolan...
-          </div>
+          <>
+            <div className="h-[65px] min-h-[65px] px-4 border-b border-border-subtle bg-surface hidden md:flex items-center shrink-0">
+              <span className="text-xs font-semibold text-ink-muted">Memuat percakapan...</span>
+            </div>
+            <div className="flex-1 flex items-center justify-center text-xs text-ink-muted">
+              Memuat ruang obrolan...
+            </div>
+          </>
         ) : activeChat ? (
           <>
-            {/* Top Bar Chat */}
-            <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between gap-3 bg-surface shrink-0">
+            {/* Top Bar Chat: Sejajar persis dengan Top Bar Kiri (h-[65px]) */}
+            <div className="h-[65px] min-h-[65px] px-4 border-b border-border-subtle flex items-center justify-between gap-3 bg-surface shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
                 <button
                   type="button"
@@ -868,18 +884,19 @@ export default function ChatClient({
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Pesan Cepat */}
+            {/* Pesan Cepat (Single-Row Horizontal Scrollable Capsule Chips) */}
             {getObjectiveQuickReplies().length > 0 && (
-              <div className="flex flex-nowrap sm:flex-wrap items-center gap-2 px-3 sm:px-4 py-2 border-t border-border-subtle bg-surface shrink-0 overflow-x-auto no-scrollbar">
-                <span className="text-xs font-semibold text-ink-muted shrink-0">
-                  Pesan Cepat:
-                </span>
+              <div className="flex items-center gap-1.5 px-3 sm:px-4 py-2 border-t border-border-subtle bg-surface shrink-0 overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-1 text-[11px] font-bold text-ink-muted bg-canvas px-2.5 py-1 rounded-full border border-border-subtle shrink-0 select-none">
+                  <Zap className="w-3 h-3 text-campus-gold fill-campus-gold/30 shrink-0" aria-hidden="true" />
+                  <span className="tracking-tight">Pesan Cepat</span>
+                </div>
                 {getObjectiveQuickReplies().map((chip, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => handleSendQuickReply(chip)}
-                    className="min-h-[34px] px-3 py-1 text-xs font-medium rounded-lg bg-canvas text-ink-secondary border border-border-subtle hover:bg-brand-blue-soft hover:text-brand-blue hover:border-brand-blue-border transition-colors shrink-0 whitespace-nowrap"
+                    className="h-[30px] px-3 text-xs font-medium rounded-full bg-canvas text-ink-secondary border border-border-subtle hover:bg-brand-blue-soft hover:text-brand-blue hover:border-brand-blue-border active:scale-95 transition-all shrink-0 whitespace-nowrap"
                   >
                     {chip}
                   </button>

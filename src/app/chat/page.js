@@ -39,11 +39,16 @@ export default async function ChatPage({ searchParams }) {
 
   return (
     <div className="h-dvh flex flex-col bg-canvas text-ink overflow-hidden">
-      <Navbar user={user} cartCount={cartCount} showSearchBar={false} />
+      <Navbar
+        user={user}
+        cartCount={cartCount}
+        showSearchBar={false}
+        showCampusSelector={false}
+      />
       <main
         id="main-content"
         tabIndex={-1}
-        className="flex-1 min-h-0 max-w-6xl w-full mx-auto px-0 sm:px-4 md:px-6 py-0 sm:py-3 flex flex-col outline-none"
+        className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-3 flex flex-col outline-none"
       >
         <ChatClient
           user={user}
