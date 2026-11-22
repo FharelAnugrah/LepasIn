@@ -1027,11 +1027,53 @@ select.select-custom-arrow::-ms-expand {
 
 @keyframes heroStarburstPulse {
   0%, 100% {
-    transform: scale(1) rotate(6deg);
+    transform: translateY(0) scale(1) rotate(2deg);
   }
   50% {
-    transform: scale(1.05) rotate(8deg);
+    transform: translateY(-3px) scale(1.03) rotate(3deg);
   }
+}
+
+/* ==========================================================================
+   Hero 360° Planetary Orbit
+   ========================================================================== */
+
+/* Rotasi Orbit 360° (1 putaran penuh 16 detik) */
+@keyframes heroOrbit360 {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Counter-rotation 360° agar teks & ikon badge selalu tegak lurus */
+@keyframes heroOrbitCounter360 {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(-360deg);
+  }
+}
+
+/* Track Orbiting (16s per putaran) */
+.hero-orbit-track {
+  animation: heroOrbit360 16s linear infinite;
+  transform-origin: center center;
+}
+
+/* Node Counter-Rotation (Menetralkan rotasi orbit) */
+.hero-orbit-node-counter {
+  animation: heroOrbitCounter360 16s linear infinite;
+  transform-origin: center center;
+}
+
+/* Pause animasi saat pengguna mengarahkan kursor (hover) agar badge mudah diklik */
+.hero-orbit-wrapper:hover .hero-orbit-track,
+.hero-orbit-wrapper:hover .hero-orbit-node-counter {
+  animation-play-state: paused !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1039,7 +1081,9 @@ select.select-custom-arrow::-ms-expand {
   .hero-showcase-badge-2,
   .hero-showcase-badge-3,
   .hero-showcase-badge-4,
-  .hero-starburst-pulse {
+  .hero-starburst-pulse,
+  .hero-orbit-track,
+  .hero-orbit-node-counter {
     animation: none !important;
   }
 }

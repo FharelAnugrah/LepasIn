@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import {
@@ -122,6 +122,40 @@ export default function ProductCatalog({
     currentStoreObj && !relevantStores.some((s) => s.id === currentStoreObj.id)
       ? [currentStoreObj, ...relevantStores]
       : relevantStores;
+
+  const [storeSearch, setStoreSearch] = useState('');
+  const [isStoreOpen, setIsStoreOpen] = useState(false);
+  const storeDropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        storeDropdownRef.current &&
+        !storeDropdownRef.current.contains(event.target)
+      ) {
+        setIsStoreOpen(false);
+      }
+    }
+
+    if (isStoreOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isStoreOpen]);
+
+  const filteredStoreOptions = storeOptions.filter((st) => {
+    if (!storeSearch.trim()) return true;
+    const term = storeSearch.toLowerCase().trim();
+    const nameMatch = (st.name || '').toLowerCase().includes(term);
+    const campusMatch = (st.campus_short_name || '').toLowerCase().includes(term);
+    const campusCityMatch = (st.campus_city || '').toLowerCase().includes(term);
+    return nameMatch || campusMatch || campusCityMatch;
+  });
 
   const sortedCategories = [...(categories || [])].sort((a, b) => {
     const isALainnya = /^(lainnya|lain-lain|lainnya \/ other)$/i.test(a.name?.trim());
@@ -272,6 +306,8 @@ export default function ProductCatalog({
     setCampus(null);
     setCategory(null);
     setStore(null);
+    setStoreSearch('');
+    setIsStoreOpen(false);
     setCondition(null);
     setMinPrice('');
     setMaxPrice('');
@@ -457,19 +493,21 @@ export default function ProductCatalog({
             </div>
           </div>
 
-          {/* Filter 2: Toko */}
+          {/* Filter 2: Toko (Searchable Popover Dropdown) */}
           <div className="flex flex-col gap-2 border-t border-border-subtle pt-4">
             <div className="flex items-center justify-between">
-              <label htmlFor="desktop-store-filter" className="text-xs font-semibold text-ink-secondary flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-ink-secondary flex items-center gap-1.5">
                 <Store className="w-3.5 h-3.5 text-brand-blue" aria-hidden="true" />
                 <span>Toko Penjual</span>
-              </label>
+              </span>
               {store && (
                 <button
                   type="button"
                   onClick={() => {
                     setStore(null);
                     applyFilters({ store: null, page: 1 });
+                    setIsStoreOpen(false);
+                    setStoreSearch('');
                   }}
                   className="text-xs text-brand-blue font-semibold hover:underline"
                 >
@@ -477,23 +515,147 @@ export default function ProductCatalog({
                 </button>
               )}
             </div>
-            <select
-              id="desktop-store-filter"
-              value={store || ''}
-              onChange={(e) => {
-                const val = e.target.value ? Number(e.target.value) : null;
-                setStore(val);
-                applyFilters({ store: val, page: 1 });
-              }}
-              className="input-3d w-full h-10 px-3 rounded-xl bg-surface border border-border-subtle text-xs font-medium text-ink outline-none focus:border-brand-blue"
-            >
-              <option value="">Semua Toko ({relevantStores.length})</option>
-              {storeOptions.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {st.name} ({st.campus_short_name})
-                </option>
-              ))}
-            </select>
+
+            <div ref={storeDropdownRef} className="relative">
+              {/* Trigger Button Elegan dengan ChevronDown */}
+              <button
+                type="button"
+                onClick={() => setIsStoreOpen((prev) => !prev)}
+                aria-expanded={isStoreOpen}
+                aria-haspopup="listbox"
+                className={`w-full min-h-[42px] px-3 py-2 rounded-xl border text-xs font-medium text-left flex items-center justify-between gap-2 transition-all shadow-xs ${
+                  isStoreOpen
+                    ? 'border-brand-blue ring-2 ring-brand-blue-soft bg-surface text-ink'
+                    : store
+                    ? 'border-brand-blue/50 bg-brand-blue-soft/50 text-brand-blue font-semibold hover:border-brand-blue'
+                    : 'border-border-subtle bg-surface text-ink hover:border-border hover:bg-canvas/50'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Store className="w-3.5 h-3.5 text-brand-blue shrink-0" aria-hidden="true" />
+                  <span className="truncate">
+                    {currentStoreObj ? (
+                      <>
+                        {currentStoreObj.name}{' '}
+                        <span className="text-[11px] opacity-75 font-normal">
+                          ({currentStoreObj.campus_short_name})
+                        </span>
+                      </>
+                    ) : (
+                      `Semua Toko (${relevantStores.length})`
+                    )}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-ink-muted shrink-0 transition-transform duration-200 ${
+                    isStoreOpen ? 'rotate-180 text-brand-blue' : ''
+                  }`}
+                  aria-hidden="true"
+                />
+              </button>
+
+              {/* Popover Menu Dropdown */}
+              {isStoreOpen && (
+                <div
+                  role="listbox"
+                  className="absolute z-30 left-0 right-0 mt-1.5 p-2 bg-surface rounded-xl border border-border-subtle shadow-xl flex flex-col gap-1.5 animate-in fade-in-0 zoom-in-95 duration-150"
+                >
+                  {/* Input Pencarian Cepat Toko dengan Icon Search */}
+                  <div className="relative">
+                    <Search
+                      className="w-3.5 h-3.5 text-ink-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Cari toko atau kampus..."
+                      value={storeSearch}
+                      onChange={(e) => setStoreSearch(e.target.value)}
+                      className="w-full h-8 pl-8 pr-7 rounded-lg bg-canvas border border-border-subtle text-xs text-ink placeholder:text-ink-muted outline-none focus:border-brand-blue focus:bg-surface"
+                      autoFocus
+                    />
+                    {storeSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setStoreSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink p-0.5"
+                        aria-label="Bersihkan pencarian toko"
+                      >
+                        <X className="w-3 h-3" aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Daftar Opsi Toko */}
+                  <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto pr-0.5 scrollbar-thin">
+                    {/* Opsi: Semua Toko (di baris paling atas saat tidak memfilter) */}
+                    {!storeSearch && (
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={store === null}
+                        onClick={() => {
+                          setStore(null);
+                          applyFilters({ store: null, page: 1 });
+                          setIsStoreOpen(false);
+                          setStoreSearch('');
+                        }}
+                        className={`flex items-center justify-between text-xs py-2 px-2.5 rounded-lg text-left transition-colors ${
+                          store === null
+                            ? 'bg-brand-blue-soft text-brand-blue font-semibold'
+                            : 'text-ink-secondary hover:text-ink hover:bg-canvas'
+                        }`}
+                      >
+                        <span>Semua Toko ({relevantStores.length})</span>
+                        {store === null && (
+                          <Check className="w-3.5 h-3.5 text-brand-blue shrink-0" aria-hidden="true" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* Mapping filteredStoreOptions */}
+                    {filteredStoreOptions.map((st) => {
+                      const isSelected = store === st.id;
+                      return (
+                        <button
+                          key={st.id}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => {
+                            setStore(st.id);
+                            applyFilters({ store: st.id, page: 1 });
+                            setIsStoreOpen(false);
+                            setStoreSearch('');
+                          }}
+                          className={`flex items-center justify-between gap-2 text-xs py-2 px-2.5 rounded-lg text-left transition-colors ${
+                            isSelected
+                              ? 'bg-brand-blue-soft text-brand-blue font-semibold'
+                              : 'text-ink-secondary hover:text-ink hover:bg-canvas'
+                          }`}
+                        >
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate font-medium">{st.name}</span>
+                            <span className="text-[10px] text-ink-muted truncate">
+                              {st.campus_short_name}
+                            </span>
+                          </div>
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-brand-blue shrink-0" aria-hidden="true" />
+                          )}
+                        </button>
+                      );
+                    })}
+
+                    {filteredStoreOptions.length === 0 && (
+                      <div className="py-4 text-center text-xs text-ink-muted">
+                        Toko &ldquo;{storeSearch}&rdquo; tidak ditemukan
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Filter 3: Kondisi */}
@@ -621,15 +783,6 @@ export default function ProductCatalog({
                 </span>
               )}
             </div>
-            {activeFiltersCount > 0 && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="text-brand-blue font-semibold hover:underline"
-              >
-                Reset Semua Filter
-              </button>
-            )}
           </div>
 
           {/* Toko Terkait Sesuai Pencarian */}
@@ -818,33 +971,94 @@ export default function ProductCatalog({
 
           <div className="flex flex-col gap-2 border-t border-border-subtle pt-3">
             <div className="flex items-center justify-between">
-              <label htmlFor="mobile-store-filter" className="text-xs font-semibold text-ink-secondary flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-ink-secondary flex items-center gap-1.5">
                 <Store className="w-3.5 h-3.5 text-brand-blue" aria-hidden="true" />
                 <span>Pilih Toko</span>
-              </label>
+              </span>
               {store && (
                 <button
                   type="button"
-                  onClick={() => setStore(null)}
+                  onClick={() => {
+                    setStore(null);
+                    setStoreSearch('');
+                  }}
                   className="text-xs text-brand-blue font-semibold hover:underline"
                 >
                   Semua Toko
                 </button>
               )}
             </div>
-            <select
-              id="mobile-store-filter"
-              value={store || ''}
-              onChange={(e) => setStore(e.target.value ? Number(e.target.value) : null)}
-              className="w-full h-11 px-3 rounded-lg bg-canvas border border-border-subtle text-sm font-medium text-ink focus:bg-surface focus:border-brand-blue focus:ring-2 focus:ring-brand-blue-soft transition-colors"
-            >
-              <option value="">Semua Toko ({relevantStores.length})</option>
-              {storeOptions.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {st.name} ({st.campus_short_name})
-                </option>
-              ))}
-            </select>
+
+            {/* Input Pencarian Cepat Toko Mobile */}
+            <div className="relative">
+              <Search
+                className="w-3.5 h-3.5 text-ink-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                placeholder="Cari toko atau kampus..."
+                value={storeSearch}
+                onChange={(e) => setStoreSearch(e.target.value)}
+                className="w-full h-8 pl-8 pr-7 rounded-lg bg-canvas border border-border-subtle text-xs text-ink placeholder:text-ink-muted outline-none focus:border-brand-blue focus:bg-surface"
+              />
+              {storeSearch && (
+                <button
+                  type="button"
+                  onClick={() => setStoreSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink p-0.5"
+                  aria-label="Bersihkan pencarian toko"
+                >
+                  <X className="w-3 h-3" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+              {!storeSearch && (
+                <button
+                  type="button"
+                  onClick={() => setStore(null)}
+                  className={`min-h-[40px] px-3 py-2 rounded-lg text-xs text-left border transition-colors flex items-center justify-between gap-2 ${
+                    store === null
+                      ? 'border-brand-blue bg-brand-blue-soft text-brand-blue font-semibold'
+                      : 'border-border-subtle bg-canvas text-ink-secondary hover:text-ink hover:bg-surface'
+                  }`}
+                >
+                  <span>Semua Toko ({relevantStores.length})</span>
+                  {store === null && (
+                    <Check className="w-3.5 h-3.5 text-brand-blue shrink-0" aria-hidden="true" />
+                  )}
+                </button>
+              )}
+              {filteredStoreOptions.map((st) => {
+                const isSelected = store === st.id;
+                return (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setStore(st.id)}
+                    className={`min-h-[40px] px-3 py-2 rounded-lg text-xs text-left border transition-colors flex items-center justify-between gap-2 ${
+                      isSelected
+                        ? 'border-brand-blue bg-brand-blue-soft text-brand-blue font-semibold'
+                        : 'border-border-subtle bg-canvas text-ink-secondary hover:text-ink hover:bg-surface'
+                    }`}
+                  >
+                    <span className="truncate">
+                      {st.name} <span className="text-[11px] opacity-75">({st.campus_short_name})</span>
+                    </span>
+                    {isSelected && (
+                      <Check className="w-3.5 h-3.5 text-brand-blue shrink-0" aria-hidden="true" />
+                    )}
+                  </button>
+                );
+              })}
+              {filteredStoreOptions.length === 0 && (
+                <div className="py-3 text-center text-xs text-ink-muted col-span-full">
+                  Toko &ldquo;{storeSearch}&rdquo; tidak ditemukan
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-col gap-2 border-t border-border-subtle pt-3">

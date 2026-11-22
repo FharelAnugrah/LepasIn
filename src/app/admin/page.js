@@ -4,7 +4,6 @@ import {
   Store,
   Package,
   TrendingUp,
-  Clock,
   GraduationCap,
 } from 'lucide-react';
 import { query } from '@/lib/db';
@@ -93,27 +92,6 @@ export default async function AdminDashboardPage() {
           <span>{totalCampuses} Kampus Terdaftar</span>
         </Link>
       </div>
-
-      {userStats.pending_sellers > 0 && (
-        <div className="p-4 md:p-5 rounded-xl bg-warning-bg border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-surface text-warning-text border border-amber-200 flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5" aria-hidden="true" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-ink">
-                Ada {userStats.pending_sellers} Pendaftaran Penjual Baru
-              </h2>
-              <p className="text-xs text-ink-secondary">
-                Toko belum dapat mengunggah barang sebelum diverifikasi dan disetujui admin.
-              </p>
-            </div>
-          </div>
-          <Button href="/admin/sellers?status=pending" variant="primary" size="sm">
-            Tinjau Pendaftar
-          </Button>
-        </div>
-      )}
 
       {/* Grid Kartu Metrik Utama 3D */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 tabular-nums">

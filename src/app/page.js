@@ -13,6 +13,7 @@ import {
   Package,
   Handshake,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
@@ -190,6 +191,17 @@ export default async function HomePage({ searchParams }) {
     console.error('Error fetching latest products:', err);
   }
 
+  // Tombol CTA kedua Hero kondisional berdasarkan role user
+  const role = (user?.role || '').toLowerCase();
+  const isSeller = role === 'seller' || Boolean(user?.store_id) || user?.seller_status === 'approved';
+  const isAdmin = role === 'admin';
+
+  const secondaryCta = isSeller
+    ? { href: '/seller/products/new', label: '+ Jual Barang Preloved' }
+    : isAdmin
+    ? { href: '/admin', label: '🛡️ Kelola Platform' }
+    : { href: '/register?role=seller', label: 'Buka Lapak Mahasiswa' };
+
   return (
     <div className="min-h-screen flex flex-col text-ink">
       <Navbar
@@ -245,6 +257,14 @@ export default async function HomePage({ searchParams }) {
           {/* Latar Belakang Animasi Bergerak Interaktif 3D (Luminous Aurora, Constellation Orbit, Isometric Grid & Parallax) */}
           <HeroAnimatedBackground />
 
+          {/* Badge Diskon Aksen Emas (Pojok Kanan Atas Banner) */}
+          <div className="hero-starburst-pulse absolute top-4 right-4 sm:top-6 sm:right-8 z-20 pointer-events-auto">
+            <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-campus-gold text-ink font-black text-[11px] sm:text-xs shadow-[0_4px_14px_rgba(251,191,36,0.35),0_2px_0_#B37903] border border-amber-200/90 select-none">
+              <Sparkles className="w-3.5 h-3.5 fill-ink/20 shrink-0" aria-hidden="true" />
+              <span className="tracking-tight whitespace-nowrap">Hemat s/d 70%</span>
+            </span>
+          </div>
+
           {/* Bagian Atas Hero (Grid 2-Kolom: Teks Narasi & 3D Preloved Item Showcase) */}
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center p-6 sm:p-8 md:p-10">
             {/* Sisi Kiri: Headline, Subheadline, Deskripsi, 2 Tombol CTA Pill 3D */}
@@ -274,10 +294,10 @@ export default async function HomePage({ searchParams }) {
                   <span>⚡ Jelajah Produk</span>
                 </Link>
                 <Link
-                  href={user?.role === 'seller' ? '/seller/products/new' : '/register?role=seller'}
+                  href={secondaryCta.href}
                   className="btn-3d btn-3d-frost inline-flex items-center justify-center min-h-[46px] font-semibold text-sm rounded-full px-6 py-2.5"
                 >
-                  <span>Buka Lapak Mahasiswa</span>
+                  <span>{secondaryCta.label}</span>
                 </Link>
               </div>
             </div>

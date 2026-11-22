@@ -175,24 +175,8 @@ export default function HeroAnimatedBackground() {
           <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_12px_#FFFFFF]" />
         </div>
 
-        {/* Ring Inti Berdenyut Halus + Aksen Kampus Emas Melayang di Pusat Orbit */}
-        <div className="hero-orbit-core absolute inset-24 sm:inset-28 rounded-full border border-white/15 bg-white/[0.04] backdrop-blur-[2px] flex items-center justify-center">
-          <div className="w-12 h-12 rounded-2xl bg-campus-gold/20 border border-campus-gold/40 text-campus-gold flex items-center justify-center shadow-[0_0_24px_rgba(251,191,36,0.35)]">
-            <svg
-              className="w-6 h-6 stroke-[1.75]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
-              <path d="M22 10v6" />
-              <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
-            </svg>
-          </div>
-        </div>
+        {/* Ring Inti Berdenyut Halus di Latar Belakang */}
+        <div className="hero-orbit-core absolute inset-24 sm:inset-28 rounded-full border border-white/10 bg-white/[0.02] backdrop-blur-[1px]" />
       </div>
 
       {/* 7. Elemen Isometrik Melayang & Partikel Debu Emas Kampus */}
