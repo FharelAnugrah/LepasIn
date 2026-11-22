@@ -18,6 +18,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Badge from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { preventEnterSubmitOnInput } from '@/lib/form-utils';
+import { validatePhone } from '@/lib/validation';
 
 export default function AddressManager({ initialAddresses = [], user }) {
   const router = useRouter();
@@ -37,6 +38,18 @@ export default function AddressManager({ initialAddresses = [], user }) {
 
   const [formLoading, setFormLoading] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+
+  const clearError = (field) => {
+    setFormErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const getError = (field) =>
+    Array.isArray(formErrors[field]) ? formErrors[field][0] : formErrors[field];
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addressToDelete, setAddressToDelete] = useState(null);
@@ -71,15 +84,45 @@ export default function AddressManager({ initialAddresses = [], user }) {
   const handleSaveAddress = async (e) => {
     e.preventDefault();
     if (formLoading) return;
+
+    const trimmedLabel = label.trim();
+    const trimmedRecipient = recipientName.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedAddress = addressLine.trim();
+    const trimmedCity = city.trim();
+
+    const errors = {};
+    if (!trimmedLabel) {
+      errors.label = 'Label alamat wajib diisi (contoh: Kost Putri Melati, Asrama Kampus).';
+    }
+    if (!trimmedRecipient) {
+      errors.recipient_name = 'Nama penerima paket/COD wajib diisi.';
+    }
+    const phoneErr = validatePhone(trimmedPhone);
+    if (phoneErr) {
+      errors.phone = phoneErr;
+    }
+    if (!trimmedAddress) {
+      errors.address_line = 'Detail alamat wajib diisi selengkap mungkin (nama jalan/gedung/nomor kamar).';
+    }
+    if (!trimmedCity) {
+      errors.city = 'Kota / Kabupaten wajib diisi.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     setFormErrors({});
     setFormLoading(true);
 
     const payload = {
-      label: label.trim(),
-      recipient_name: recipientName.trim(),
-      phone: phone.trim(),
-      address_line: addressLine.trim(),
-      city: city.trim(),
+      label: trimmedLabel,
+      recipient_name: trimmedRecipient,
+      phone: trimmedPhone,
+      address_line: trimmedAddress,
+      city: trimmedCity,
       postal_code: postalCode.trim() || null,
       is_default: isDefault,
     };
@@ -300,8 +343,11 @@ export default function AddressManager({ initialAddresses = [], user }) {
             label="Label Alamat (mis. Kost Tamalanrea, Rumah Makassar)"
             placeholder="Contoh: Kost Griya Putri"
             value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            error={formErrors.label?.[0]}
+            onChange={(e) => {
+              setLabel(e.target.value);
+              clearError('label');
+            }}
+            error={getError('label')}
             required
           />
 
@@ -310,16 +356,22 @@ export default function AddressManager({ initialAddresses = [], user }) {
               label="Nama Penerima"
               placeholder="Nama penghuni kamar kost"
               value={recipientName}
-              onChange={(e) => setRecipientName(e.target.value)}
-              error={formErrors.recipient_name?.[0]}
+              onChange={(e) => {
+                setRecipientName(e.target.value);
+                clearError('recipient_name');
+              }}
+              error={getError('recipient_name')}
               required
             />
             <Input
               label="Nomor WhatsApp / HP"
               placeholder="08xxxxxxxxxx"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              error={formErrors.phone?.[0]}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                clearError('phone');
+              }}
+              error={getError('phone')}
               required
             />
           </div>
@@ -329,8 +381,11 @@ export default function AddressManager({ initialAddresses = [], user }) {
             placeholder="Jalan, nomor kost, blok, nomor kamar, patokan sekitar..."
             rows={3}
             value={addressLine}
-            onChange={(e) => setAddressLine(e.target.value)}
-            error={formErrors.address_line?.[0]}
+            onChange={(e) => {
+              setAddressLine(e.target.value);
+              clearError('address_line');
+            }}
+            error={getError('address_line')}
             required
           />
 
@@ -339,16 +394,22 @@ export default function AddressManager({ initialAddresses = [], user }) {
               label="Kota / Kabupaten"
               placeholder="Contoh: Makassar"
               value={city}
-              onChange={(e) => setCity(e.target.value)}
-              error={formErrors.city?.[0]}
+              onChange={(e) => {
+                setCity(e.target.value);
+                clearError('city');
+              }}
+              error={getError('city')}
               required
             />
             <Input
               label="Kode Pos (Opsional)"
               placeholder="90245"
               value={postalCode}
-              onChange={(e) => setPostalCode(e.target.value)}
-              error={formErrors.postal_code?.[0]}
+              onChange={(e) => {
+                setPostalCode(e.target.value);
+                clearError('postal_code');
+              }}
+              error={getError('postal_code')}
             />
           </div>
 

@@ -38,6 +38,7 @@ import {
   validateConfirmPassword,
   validateStoreName,
   validateLocation,
+  validateIdCardUrl,
 } from '@/lib/validation';
 
 const fieldLabels = {
@@ -132,17 +133,17 @@ export default function RegisterForm() {
   const handleIdCardFile = async (file) => {
     if (!file) return;
 
-    const validMimes = ['image/jpeg', 'image/png'];
-    const validExtensions = ['.jpg', '.jpeg', '.png'];
+    const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
     const ext = file.name ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase() : '';
 
     if (!validMimes.includes(file.type.toLowerCase()) && !validExtensions.includes(ext)) {
-      toast.error('Format foto ditolak. Hanya format JPG/JPEG dan PNG yang diperbolehkan.');
+      toast.error('Format berkas harus berupa gambar (JPG, PNG, WebP) dengan ukuran maksimal 5 MB.');
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Ukuran foto melebihi batas maksimal 10 MB.');
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Format berkas harus berupa gambar (JPG, PNG, WebP) dengan ukuran maksimal 5 MB.');
       return;
     }
 
@@ -212,8 +213,8 @@ export default function RegisterForm() {
         err = validatePhone(valueOverride !== null ? valueOverride : phone);
         break;
       case 'campus_id':
-        if (!campus || !campus.id || Number(campus.id) <= 0) {
-          err = 'Penjual wajib memilih kampus tempat berjualan dari daftar yang tersedia.';
+        if (role === 'seller' && (!campus || !campus.id || Number(campus.id) <= 0)) {
+          err = 'Asal kampus wajib dipilih untuk mendaftarkan toko ke direktori kampus.';
         }
         break;
       case 'store_name':
@@ -224,7 +225,7 @@ export default function RegisterForm() {
         break;
       case 'id_card_url':
         if (!idCardUrl || !idCardUrl.trim()) {
-          err = 'Wajib mengunggah foto selfie sambil memegang KTM atau kartu tanda pengenal lainnya.';
+          err = 'Foto Kartu Tanda Mahasiswa (KTM) wajib diunggah untuk verifikasi toko.';
         }
         break;
       case 'password':
@@ -287,7 +288,7 @@ export default function RegisterForm() {
     if (phoneErr) errs.phone = phoneErr;
 
     if (!campus || !campus.id || Number(campus.id) <= 0) {
-      errs.campus_id = 'Penjual wajib memilih kampus tempat berjualan dari daftar yang tersedia.';
+      errs.campus_id = 'Asal kampus wajib dipilih untuk mendaftarkan toko ke direktori kampus.';
     }
 
     return errs;
@@ -309,9 +310,9 @@ export default function RegisterForm() {
   const validateSellerStep3 = () => {
     const errs = {};
 
-    if (!idCardUrl || !idCardUrl.trim()) {
-      errs.id_card_url =
-        'Wajib mengunggah foto selfie sambil memegang KTM atau kartu tanda pengenal lainnya.';
+    const idCardErr = validateIdCardUrl(idCardUrl);
+    if (idCardErr) {
+      errs.id_card_url = idCardErr;
     }
 
     const passErr = validatePassword(password);
@@ -498,11 +499,9 @@ export default function RegisterForm() {
           value={password}
           onChange={(e) => {
             setPassword(e.target.value);
-            if (fieldErrors.password) {
-              validateField('password', e.target.value);
-            }
-            if (confirmPassword && fieldErrors.confirmPassword) {
-              validateField('confirmPassword');
+            clearFieldError('password');
+            if (fieldErrors.confirmPassword) {
+              clearFieldError('confirmPassword');
             }
           }}
           onBlur={() => validateField('password')}
@@ -531,9 +530,7 @@ export default function RegisterForm() {
           value={confirmPassword}
           onChange={(e) => {
             setConfirmPassword(e.target.value);
-            if (fieldErrors.confirmPassword) {
-              validateField('confirmPassword', e.target.value);
-            }
+            clearFieldError('confirmPassword');
           }}
           onBlur={() => validateField('confirmPassword')}
           error={fieldErrors.confirmPassword}
@@ -564,6 +561,8 @@ export default function RegisterForm() {
           clearFieldError('campus_id');
         }}
         allowAll={false}
+        allowClear={!isRequired}
+        clearLabel="Tidak Memilih Kampus"
         placeholder="Pilih perguruan tinggi..."
         error={fieldErrors.campus_id}
         fullWidth={true}
@@ -661,9 +660,7 @@ export default function RegisterForm() {
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
-                  if (fieldErrors.name) {
-                    validateField('name', e.target.value);
-                  }
+                  clearFieldError('name');
                 }}
                 onBlur={() => validateField('name')}
                 error={fieldErrors.name}
@@ -681,9 +678,7 @@ export default function RegisterForm() {
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
-                    if (fieldErrors.email) {
-                      validateField('email', e.target.value);
-                    }
+                    clearFieldError('email');
                   }}
                   onBlur={() => validateField('email')}
                   error={fieldErrors.email}
@@ -701,9 +696,7 @@ export default function RegisterForm() {
                   value={phone}
                   onChange={(e) => {
                     setPhone(e.target.value);
-                    if (fieldErrors.phone) {
-                      validateField('phone', e.target.value);
-                    }
+                    clearFieldError('phone');
                   }}
                   onBlur={() => validateField('phone')}
                   error={fieldErrors.phone}
@@ -832,9 +825,7 @@ export default function RegisterForm() {
                       value={name}
                       onChange={(e) => {
                         setName(e.target.value);
-                        if (fieldErrors.name) {
-                          validateField('name', e.target.value);
-                        }
+                        clearFieldError('name');
                       }}
                       onBlur={() => validateField('name')}
                       error={fieldErrors.name}
@@ -853,9 +844,7 @@ export default function RegisterForm() {
                         value={email}
                         onChange={(e) => {
                           setEmail(e.target.value);
-                          if (fieldErrors.email) {
-                            validateField('email', e.target.value);
-                          }
+                          clearFieldError('email');
                         }}
                         onBlur={() => validateField('email')}
                         error={fieldErrors.email}
@@ -873,9 +862,7 @@ export default function RegisterForm() {
                         value={phone}
                         onChange={(e) => {
                           setPhone(e.target.value);
-                          if (fieldErrors.phone) {
-                            validateField('phone', e.target.value);
-                          }
+                          clearFieldError('phone');
                         }}
                         onBlur={() => validateField('phone')}
                         error={fieldErrors.phone}
@@ -927,9 +914,7 @@ export default function RegisterForm() {
                           value={storeName}
                           onChange={(e) => {
                             setStoreName(e.target.value);
-                            if (fieldErrors.store_name) {
-                              validateField('store_name', e.target.value);
-                            }
+                            clearFieldError('store_name');
                           }}
                           onBlur={() => validateField('store_name')}
                           error={fieldErrors.store_name}
@@ -945,9 +930,7 @@ export default function RegisterForm() {
                           value={location}
                           onChange={(e) => {
                             setLocation(e.target.value);
-                            if (fieldErrors.location) {
-                              validateField('location', e.target.value);
-                            }
+                            clearFieldError('location');
                           }}
                           onBlur={() => validateField('location')}
                           error={fieldErrors.location}
@@ -1022,7 +1005,7 @@ export default function RegisterForm() {
                             Foto selfie sambil memegang KTM / Kartu Mahasiswa yang terbaca jelas.
                           </p>
                           <p className="text-xs text-ink-muted mt-0.5">
-                            Pastikan wajah serta nama/NIM terlihat utuh dalam satu frame. Format JPG/JPEG atau PNG, maksimal 10 MB.
+                            Pastikan wajah serta nama/NIM terlihat utuh dalam satu frame. Format gambar (JPG, PNG, WebP) dengan ukuran maksimal 5 MB.
                           </p>
                         </div>
                       </div>
@@ -1035,7 +1018,7 @@ export default function RegisterForm() {
                           if (f) handleIdCardFile(f);
                           e.target.value = '';
                         }}
-                        accept="image/jpeg,image/png"
+                        accept="image/jpeg,image/png,image/webp"
                         className="hidden"
                       />
 
@@ -1146,11 +1129,9 @@ export default function RegisterForm() {
                           value={password}
                           onChange={(e) => {
                             setPassword(e.target.value);
-                            if (fieldErrors.password) {
-                              validateField('password', e.target.value);
-                            }
-                            if (confirmPassword && fieldErrors.confirmPassword) {
-                              validateField('confirmPassword');
+                            clearFieldError('password');
+                            if (fieldErrors.confirmPassword) {
+                              clearFieldError('confirmPassword');
                             }
                           }}
                           onBlur={() => validateField('password')}
@@ -1183,9 +1164,7 @@ export default function RegisterForm() {
                           value={confirmPassword}
                           onChange={(e) => {
                             setConfirmPassword(e.target.value);
-                            if (fieldErrors.confirmPassword) {
-                              validateField('confirmPassword', e.target.value);
-                            }
+                            clearFieldError('confirmPassword');
                           }}
                           onBlur={() => validateField('confirmPassword')}
                           error={fieldErrors.confirmPassword}

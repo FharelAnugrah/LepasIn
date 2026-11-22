@@ -19,27 +19,27 @@ export const dynamic = 'force-dynamic';
 const registerSchema = z
   .object({
     name: z
-      .string({ message: 'Nama lengkap wajib diisi' })
+      .string({ message: 'Nama lengkap wajib diisi sesuai identitas mahasiswa.' })
       .trim()
-      .min(1, 'Nama lengkap wajib diisi')
-      .min(3, 'Nama lengkap minimal 3 karakter')
+      .min(1, 'Nama lengkap wajib diisi sesuai identitas mahasiswa.')
+      .min(3, 'Nama lengkap minimal terdiri dari 3 karakter.')
       .max(100, 'Nama lengkap maksimal 100 karakter'),
     email: z
-      .string({ message: 'Alamat email wajib diisi' })
+      .string({ message: 'Alamat email aktif wajib diisi.' })
       .trim()
-      .min(1, 'Alamat email wajib diisi')
-      .email('Format email belum valid. Contoh: nama@gmail.com.')
+      .min(1, 'Alamat email aktif wajib diisi.')
+      .email('Format email tidak valid. Contoh: nama@kampus.ac.id atau nama@gmail.com.')
       .max(255, 'Alamat email maksimal 255 karakter'),
     phone: z
-      .string({ message: 'Nomor WhatsApp/HP wajib diisi' })
+      .string({ message: 'Nomor WhatsApp wajib diisi untuk koordinasi transaksi/COD.' })
       .trim()
-      .min(1, 'Nomor WhatsApp/HP wajib diisi'),
+      .min(1, 'Nomor WhatsApp wajib diisi untuk koordinasi transaksi/COD.'),
     password: z
-      .string({ message: 'Password wajib diisi' })
-      .min(1, 'Password wajib diisi'),
+      .string({ message: 'Kata sandi wajib dibuat.' })
+      .min(1, 'Kata sandi wajib dibuat.'),
     confirmPassword: z
-      .string({ message: 'Konfirmasi password wajib diisi' })
-      .min(1, 'Konfirmasi password wajib diisi'),
+      .string({ message: 'Konfirmasi kata sandi tidak cocok dengan kata sandi di samping.' })
+      .min(1, 'Konfirmasi kata sandi tidak cocok dengan kata sandi di samping.'),
     role: z.enum(['buyer', 'seller'], {
       errorMap: () => ({ message: 'Pilih peran sebagai Pembeli atau Penjual' }),
     }),
@@ -51,20 +51,10 @@ const registerSchema = z
   .refine(
     (data) => {
       if (!data.name) return true;
-      return FULL_NAME_REGEX.test(data.name.trim());
+      return FULL_NAME_REGEX.test(data.name.trim()) && /[a-zA-Z]/.test(data.name.trim());
     },
     {
-      message: 'Nama hanya boleh menggunakan huruf, spasi, titik, dan apostrof.',
-      path: ['name'],
-    }
-  )
-  .refine(
-    (data) => {
-      if (!data.name || data.name.trim().length === 0) return false;
-      return /[a-zA-Z]/.test(data.name);
-    },
-    {
-      message: 'Nama lengkap harus memuat minimal satu huruf alfabet dan tidak boleh hanya berisi spasi, titik, atau apostrof.',
+      message: 'Nama hanya boleh menggunakan huruf alfabet, spasi, titik, dan tanda petik.',
       path: ['name'],
     }
   )
@@ -74,7 +64,7 @@ const registerSchema = z
       return nonSpaceLength >= 8;
     },
     {
-      message: 'Password minimal 8 karakter (spasi tidak dihitung)',
+      message: 'Kata sandi minimal 8 karakter (kombinasi huruf dan angka disarankan).',
       path: ['password'],
     }
   )
@@ -85,7 +75,7 @@ const registerSchema = z
       return allowedRegex.test(data.password || '');
     },
     {
-      message: 'Password hanya boleh memuat huruf, angka, dan simbol',
+      message: 'Kata sandi minimal 8 karakter (kombinasi huruf dan angka disarankan).',
       path: ['password'],
     }
   )
@@ -94,12 +84,12 @@ const registerSchema = z
       return /^(?=.*[A-Za-z])(?=.*\d)/.test(data.password || '');
     },
     {
-      message: 'Password harus memuat kombinasi huruf dan angka',
+      message: 'Kata sandi minimal 8 karakter (kombinasi huruf dan angka disarankan).',
       path: ['password'],
     }
   )
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Konfirmasi password tidak cocok dengan password yang dimasukkan',
+    message: 'Konfirmasi kata sandi tidak cocok dengan kata sandi di samping.',
     path: ['confirmPassword'],
   })
   .refine(
@@ -108,7 +98,7 @@ const registerSchema = z
       return !err;
     },
     {
-      message: 'Masukkan nomor WhatsApp dengan format yang benar (diawali 08, 10–15 digit).',
+      message: 'Nomor WhatsApp harus diawali 08 atau 62 dan terdiri dari 10-14 digit angka.',
       path: ['phone'],
     }
   )
@@ -120,7 +110,7 @@ const registerSchema = z
       return true;
     },
     {
-      message: 'Penjual wajib memilih kampus dari daftar perguruan tinggi yang tersedia',
+      message: 'Asal kampus wajib dipilih untuk mendaftarkan toko ke direktori kampus.',
       path: ['campus_id'],
     }
   )
@@ -135,7 +125,7 @@ const registerSchema = z
       return true;
     },
     {
-      message: 'Nama toko/lapak wajib diisi minimal 3 karakter dan tidak boleh hanya berisi angka atau simbol',
+      message: 'Nama toko wajib diisi (minimal 3 karakter, tidak menggunakan karakter khusus).',
       path: ['store_name'],
     }
   )
@@ -150,7 +140,7 @@ const registerSchema = z
       return true;
     },
     {
-      message: 'Detail lokasi/area kost wajib diisi minimal 5 karakter dan harus memuat informasi lokasi yang bermakna',
+      message: 'Detail lokasi/area kost wajib diisi (minimal 5 karakter).',
       path: ['location'],
     }
   )
@@ -162,7 +152,7 @@ const registerSchema = z
       return true;
     },
     {
-      message: 'Wajib mengunggah foto selfie dengan memegang KTM atau kartu tanda pengenal lainnya',
+      message: 'Foto Kartu Tanda Mahasiswa (KTM) wajib diunggah untuk verifikasi toko.',
       path: ['id_card_url'],
     }
   )
@@ -170,18 +160,18 @@ const registerSchema = z
     (data) => {
       if (data.role === 'seller' && data.id_card_url) {
         const val = data.id_card_url.trim();
+        if (val.includes('data:image/')) {
+          return false;
+        }
         return (
-          val.startsWith('/uploads/') ||
-          val.startsWith('/api/uploads/') ||
-          val.startsWith('http://') ||
-          val.startsWith('https://') ||
-          val.startsWith('data:image/')
+          val.startsWith('/uploads/verifications/') ||
+          /^https:\/\/[^\s]+$/i.test(val)
         );
       }
       return true;
     },
     {
-      message: 'Format URL foto identitas tidak valid',
+      message: 'Format URL foto identitas tidak valid. Foto harus diunggah melalui endpoint berkas.',
       path: ['id_card_url'],
     }
   );

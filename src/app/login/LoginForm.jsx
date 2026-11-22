@@ -27,7 +27,7 @@ export default function LoginForm() {
     const emailErr = validateEmail(email);
     if (emailErr) errs.email = emailErr;
     if (!password) {
-      errs.password = 'Password wajib diisi.';
+      errs.password = 'Kata sandi wajib diisi.';
     }
     return errs;
   };
@@ -121,11 +121,9 @@ export default function LoginForm() {
               setEmail(e.target.value);
               setError('');
               if (fieldErrors.email) {
-                const err = validateEmail(e.target.value);
                 setFieldErrors((prev) => {
                   const n = { ...prev };
-                  if (err) n.email = err;
-                  else delete n.email;
+                  delete n.email;
                   return n;
                 });
               }
@@ -154,7 +152,7 @@ export default function LoginForm() {
             onChange={(e) => {
               setPassword(e.target.value);
               setError('');
-              if (fieldErrors.password && e.target.value) {
+              if (fieldErrors.password) {
                 setFieldErrors((prev) => {
                   const n = { ...prev };
                   delete n.password;
@@ -164,7 +162,7 @@ export default function LoginForm() {
             }}
             onBlur={() => {
               if (!password) {
-                setFieldErrors((prev) => ({ ...prev, password: 'Password wajib diisi.' }));
+                setFieldErrors((prev) => ({ ...prev, password: 'Kata sandi wajib diisi.' }));
               } else {
                 setFieldErrors((prev) => {
                   const n = { ...prev };

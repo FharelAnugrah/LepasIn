@@ -8,6 +8,8 @@ export default function CampusSelector({
   onChange,
   allowAll = true,
   allLabel = 'Semua Kampus',
+  allowClear = false,
+  clearLabel = 'Tidak Memilih Kampus',
   campuses: initialCampuses = null,
   className = '',
   placeholder = 'Pilih Kampus',
@@ -80,15 +82,18 @@ export default function CampusSelector({
   }, [isOpen]);
 
   const selectedCampus =
-    campuses.find((c) => {
-      if (typeof value === 'object' && value !== null) {
-        return c.id === value.id;
-      }
-      return c.id === Number(value);
-    }) ||
-    (typeof value === 'object' && value !== null && value.id && value.short_name
-      ? value
-      : null);
+    !value
+      ? null
+      : campuses.find((c) => {
+          if (typeof value === 'object' && value !== null) {
+            return c.id === value.id;
+          }
+          const num = Number(value);
+          return num > 0 && c.id === num;
+        }) ||
+        (typeof value === 'object' && value !== null && value.id && value.short_name
+          ? value
+          : null);
 
   const filteredCampuses = campuses.filter((c) => {
     if (!search.trim()) return true;
@@ -104,6 +109,17 @@ export default function CampusSelector({
   const handleSelect = (campus) => {
     if (onChange) {
       onChange(campus);
+    }
+    setIsOpen(false);
+    setSearch('');
+    triggerRef.current?.focus();
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (onChange) {
+      onChange(null);
     }
     setIsOpen(false);
     setSearch('');
@@ -143,12 +159,31 @@ export default function CampusSelector({
               : placeholder}
           </span>
         </span>
-        <ChevronDown
-          className={`w-4 h-4 shrink-0 text-ink-muted transition-transform duration-150 ${
-            isOpen ? 'rotate-180' : ''
-          }`}
-          aria-hidden="true"
-        />
+        <div className="flex items-center gap-1 shrink-0">
+          {allowClear && selectedCampus && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={handleClear}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  handleClear(e);
+                }
+              }}
+              title="Kosongkan pilihan kampus"
+              aria-label="Kosongkan pilihan kampus"
+              className="p-1 -mr-0.5 rounded-full text-brand-blue/70 hover:text-danger-text hover:bg-danger-bg/80 active:scale-95 transition-all cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
+            </span>
+          )}
+          <ChevronDown
+            className={`w-4 h-4 shrink-0 text-ink-muted transition-transform duration-150 ${
+              isOpen ? 'rotate-180' : ''
+            }`}
+            aria-hidden="true"
+          />
+        </div>
       </button>
 
       {error && (
@@ -217,13 +252,58 @@ export default function CampusSelector({
                 </button>
               )}
 
+              {/* Opsi Kosongkan Pilihan / Tidak Memilih Kampus */}
+              {allowClear && !allowAll && (!search.trim() || clearLabel.toLowerCase().includes(search.trim().toLowerCase()) || 'kosongkan'.includes(search.trim().toLowerCase()) || 'tidak'.includes(search.trim().toLowerCase())) && (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={!selectedCampus}
+                  onClick={() => handleSelect(null)}
+                  className={`w-full text-left px-4 py-2.5 text-xs md:text-sm flex items-center justify-between hover:bg-canvas transition-colors ${
+                    !selectedCampus ? 'bg-brand-blue-soft font-semibold text-brand-blue' : 'text-ink-secondary hover:text-ink'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                      !selectedCampus ? 'bg-brand-blue text-white' : 'bg-surface-muted text-ink-muted'
+                    }`}>
+                      <X className="w-3.5 h-3.5" aria-hidden="true" />
+                    </div>
+                    <span className="truncate">{clearLabel}</span>
+                  </div>
+                  {!selectedCampus && <Check className="w-4 h-4 text-brand-blue shrink-0 ml-2" aria-hidden="true" />}
+                </button>
+              )}
+
               {loading ? (
                 <div className="p-4 text-center text-xs text-ink-muted">
                   Memuat daftar kampus...
                 </div>
               ) : filteredCampuses.length === 0 ? (
-                <div className="p-4 text-center text-xs text-ink-muted">
-                  Kampus tidak ditemukan. Coba ketik singkatan seperti UNHAS, UI, atau ITB.
+                <div className="p-4 text-center text-xs flex flex-col gap-2">
+                  <p className="font-semibold text-ink">
+                    {search ? (
+                      <>
+                        Kampus &ldquo;<span className="text-brand-blue">{search}</span>&rdquo; tidak ditemukan.
+                      </>
+                    ) : (
+                      'Kampus tidak ditemukan.'
+                    )}
+                  </p>
+                  <p className="text-ink-muted leading-relaxed text-[11px] sm:text-xs">
+                    Pastikan ejaan nama kampus, kota, atau singkatan sudah benar (contoh: UNHAS, UI, Makassar).
+                  </p>
+                  {allowClear && (
+                    <div className="mt-1 p-2.5 rounded-xl bg-canvas border border-border-subtle text-left text-[11px] text-ink-secondary leading-relaxed flex items-start gap-2">
+                      <span className="shrink-0 select-none" aria-hidden="true">💡</span>
+                      <div className="flex-1 min-w-0">
+                        <p>
+                          <strong className="font-semibold text-ink">Kampusmu belum terdaftar?</strong>{' '}
+                          Kamu tetap bisa lanjut mendaftar tanpa memilih kampus (opsional).
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 filteredCampuses.map((campus) => {

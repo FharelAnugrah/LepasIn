@@ -41,61 +41,26 @@ export function isValidImageMagicBytes(buffer, mimeType) {
 }
 
 /**
- * Konversi File atau String Data URL menjadi Base64 Data URL terverifikasi
+ * Memproses dan memvalidasi input gambar:
+ * - Objek File / Blob langsung ditolak (harus diunggah via /api/upload)
+ * - String URL / path dikembalikan untuk divalidasi ketat oleh schema produk
  * @param {File|Blob|string} item
- * @returns {Promise<string>} Base64 Data URL (data:image/...;base64,...)
+ * @returns {Promise<string>} Path atau URL gambar
  */
 export async function processImageInput(item) {
   if (!item) return null;
 
-  // Jika berupa objek File / Blob dari FormData
+  // Jika berupa objek File / Blob langsung pada payload produk (harus lewat /api/upload)
   if (typeof item === 'object' && typeof item.arrayBuffer === 'function') {
-    const fileName = item.name || 'foto';
-    const mimeType = (item.type || '').toLowerCase();
-
-    if (!ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) {
-      throw new Error(
-        `Format file "${fileName}" tidak didukung. Hanya file JPG/JPEG, PNG, dan WebP yang diperbolehkan.`
-      );
-    }
-
-    if (item.size > MAX_IMAGE_FILE_SIZE) {
-      throw new Error(`Ukuran foto "${fileName}" melebihi batas maksimal 2 MB.`);
-    }
-
-    const arrayBuffer = await item.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    if (!isValidImageMagicBytes(buffer, mimeType)) {
-      throw new Error(`File "${fileName}" rusak atau bukan file gambar yang valid.`);
-    }
-
-    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+    throw new Error(
+      'Format URL gambar tidak valid. Gambar harus diunggah melalui endpoint berkas.'
+    );
   }
 
-  // Jika berupa string (sudah berupa Data URL atau path string)
+  // Jika berupa string (path atau URL gambar)
   if (typeof item === 'string') {
     const trimmed = item.trim();
     if (!trimmed) return null;
-
-    if (trimmed.startsWith('data:image/')) {
-      const match = trimmed.match(/^data:(image\/[a-zA-Z0-9.+_-]+);base64,(.+)$/);
-      if (match) {
-        const mimeType = match[1].toLowerCase();
-        if (!ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) {
-          throw new Error(
-            'Format gambar Base64 tidak didukung. Hanya JPG/JPEG, PNG, dan WebP yang diperbolehkan.'
-          );
-        }
-        // Validasi panjang base64 tidak melebihi ~2 MB binary (~2.8 MB base64 string)
-        if (match[2].length > 3 * 1024 * 1024) {
-          throw new Error('Ukuran gambar Base64 melebihi batas maksimal 2 MB.');
-        }
-      }
-      return trimmed;
-    }
-
-    // Path data lama yang valid
     return trimmed;
   }
 

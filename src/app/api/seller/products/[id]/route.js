@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { query, withTransaction } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { extractAndProcessImages } from '@/lib/image-util';
-import { createProductNameSchema } from '@/lib/product-validation';
+import {
+  createProductNameSchema,
+  createProductImageUrlSchema,
+} from '@/lib/product-validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,9 +26,9 @@ const updatePriceValidator = z
   .transform((val) => (val === undefined || val === null || val === '' ? undefined : Number(val)))
   .pipe(
     z
-      .number({ invalid_type_error: 'Harga lepas harus berupa angka.' })
-      .int('Harga lepas harus berupa angka bulat.')
-      .min(1000, 'Harga lepas minimal Rp 1.000 dan tidak boleh bernilai Rp 0.')
+      .number({ invalid_type_error: 'Harga barang harus berupa angka positif minimal Rp1.000.' })
+      .int('Harga barang harus berupa angka positif minimal Rp1.000.')
+      .min(1000, 'Harga barang harus berupa angka positif minimal Rp1.000.')
       .max(100000000, 'Harga lepas maksimal Rp 100.000.000.')
       .optional()
   );
@@ -71,13 +74,14 @@ const updateStockValidator = z
   .transform((val) => (val === undefined || val === null || val === '' ? undefined : Number(val)))
   .pipe(
     z
-      .number({ invalid_type_error: 'Stok harus berupa angka.' })
-      .int('Stok harus berupa bilangan bulat.')
-      .min(0, 'Stok minimal 0.')
+      .number({ invalid_type_error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).' })
+      .int('Jumlah stok minimal 1 buah (angka bulat non-negatif).')
+      .min(0, 'Jumlah stok minimal 1 buah (angka bulat non-negatif).')
       .optional()
   );
 
 const productNameValidator = createProductNameSchema(z);
+const productImageUrlValidator = createProductImageUrlSchema(z);
 
 const updateProductSchema = z
   .object({
@@ -87,8 +91,12 @@ const updateProductSchema = z
     original_price: updateOriginalPriceValidator,
     stock: updateStockValidator,
     condition: z.enum(['like_new', 'good', 'fair', 'minor_defect']).optional(),
-    category_id: z.coerce.number().int().positive('Kategori wajib dipilih').optional(),
-    image_urls: z.array(z.string().trim().min(1, 'Path/Data foto tidak valid')).min(1, 'Mohon sediakan minimal 1 foto barang').max(5, 'Maksimal 5 gambar').optional(),
+    category_id: z.coerce.number().int().positive('Silakan pilih salah satu kategori barang.').optional(),
+    image_urls: z
+      .array(productImageUrlValidator)
+      .min(1, 'Wajib mengunggah minimal 1 foto produk yang jelas.')
+      .max(5, 'Maksimal 5 foto produk.')
+      .optional(),
   })
   .refine(
     (data) => {

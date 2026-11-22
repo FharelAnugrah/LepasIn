@@ -7,8 +7,16 @@ export const dynamic = 'force-dynamic';
 
 const reviewSchema = z.object({
   order_item_id: z.coerce.number().int().positive(),
-  rating: z.coerce.number().int().min(1, 'Rating minimal 1 bintang').max(5, 'Rating maksimal 5 bintang'),
-  comment: z.string().trim().max(500, 'Komentar maksimal 500 karakter').default(''),
+  rating: z.coerce
+    .number()
+    .int()
+    .min(1, 'Silakan berikan bintang 1-5 dan tulis ulasan minimal 5 karakter.')
+    .max(5, 'Silakan berikan bintang 1-5 dan tulis ulasan minimal 5 karakter.'),
+  comment: z
+    .string()
+    .trim()
+    .min(5, 'Silakan berikan bintang 1-5 dan tulis ulasan minimal 5 karakter.')
+    .max(500, 'Komentar maksimal 500 karakter'),
 });
 
 export async function POST(request) {

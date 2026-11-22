@@ -2,15 +2,24 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { query, withTransaction } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { normalizePhoneNumber } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
 const updateAddressSchema = z.object({
-  label: z.string().trim().min(1).max(50).optional(),
-  recipient_name: z.string().trim().min(1).max(100).optional(),
-  phone: z.string().trim().min(5).max(20).optional(),
-  address_line: z.string().trim().min(5).optional(),
-  city: z.string().trim().min(1).max(100).optional(),
+  label: z.string().trim().min(1, 'Label alamat wajib diisi (contoh: Kost Putri Melati, Asrama Kampus).').max(50).optional(),
+  recipient_name: z.string().trim().min(1, 'Nama penerima paket/COD wajib diisi.').max(100).optional(),
+  phone: z
+    .string()
+    .trim()
+    .min(1, 'Nomor WhatsApp wajib diisi untuk koordinasi transaksi/COD.')
+    .refine((val) => {
+      const norm = normalizePhoneNumber(val);
+      return /^08\d{8,12}$/.test(norm);
+    }, 'Nomor WhatsApp harus diawali 08 atau 62 dan terdiri dari 10-14 digit angka.')
+    .optional(),
+  address_line: z.string().trim().min(1, 'Detail alamat wajib diisi selengkap mungkin (nama jalan/gedung/nomor kamar).').optional(),
+  city: z.string().trim().min(1, 'Kota / Kabupaten wajib diisi.').max(100).optional(),
   postal_code: z.string().trim().max(10).optional().nullable(),
   is_default: z.boolean().optional(),
 });

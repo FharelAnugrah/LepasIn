@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
-import { validateStoreName, validateLocation } from '@/lib/validation';
+import { validateStoreName, validateStoreDescription, validateLocation } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,7 @@ export async function PATCH(request) {
     }
 
     const body = await request.json();
-    const { name, campus_id, location, description } = body;
+    const { name, campus_id, location, description, image_url } = body;
 
     const nameErr = validateStoreName(name);
     if (nameErr) {
@@ -22,7 +22,17 @@ export async function PATCH(request) {
 
     const parsedCampusId = Number(campus_id);
     if (!parsedCampusId) {
-      return NextResponse.json({ error: 'Kampus toko wajib dipilih' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Asal kampus wajib dipilih untuk mendaftarkan toko ke direktori kampus.' },
+        { status: 400 }
+      );
+    }
+
+    if (description !== undefined && description !== null) {
+      const descErr = validateStoreDescription(description);
+      if (descErr) {
+        return NextResponse.json({ error: descErr }, { status: 400 });
+      }
     }
 
     if (location) {
@@ -32,24 +42,41 @@ export async function PATCH(request) {
       }
     }
 
+    const cleanImageUrl =
+      typeof image_url === 'string' && image_url.trim() ? image_url.trim() : null;
+
+    if (
+      cleanImageUrl &&
+      (cleanImageUrl.startsWith('data:image/') ||
+        (!cleanImageUrl.startsWith('/uploads/stores/') &&
+          !cleanImageUrl.startsWith('/uploads/') &&
+          !/^https:\/\/[^\s]+$/i.test(cleanImageUrl)))
+    ) {
+      return NextResponse.json(
+        { error: 'Format URL gambar tidak valid. Gambar harus diunggah melalui endpoint berkas.' },
+        { status: 400 }
+      );
+    }
+
     const result = await query(
       `UPDATE stores
        SET name = $1,
            campus_id = $2,
            location = $3,
-           description = $4
-       WHERE user_id = $5
-       RETURNING id, name, campus_id, location, description`,
-      [name.trim(), parsedCampusId, location?.trim() || null, description?.trim() || '', user.id]
+           description = $4,
+           image_url = $5
+       WHERE user_id = $6
+       RETURNING id, name, campus_id, location, description, image_url`,
+      [name.trim(), parsedCampusId, location?.trim() || null, description?.trim() || '', cleanImageUrl, user.id]
     );
 
     let store = result.rows[0];
     if (!store) {
       const insertRes = await query(
-        `INSERT INTO stores (user_id, campus_id, name, location, description)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, name, campus_id, location, description`,
-        [user.id, parsedCampusId, name.trim(), location?.trim() || null, description?.trim() || '']
+        `INSERT INTO stores (user_id, campus_id, name, location, description, image_url)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, name, campus_id, location, description, image_url`,
+        [user.id, parsedCampusId, name.trim(), location?.trim() || null, description?.trim() || '', cleanImageUrl]
       );
       store = insertRes.rows[0];
     }

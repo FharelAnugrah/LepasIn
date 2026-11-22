@@ -24,24 +24,21 @@ export const PASSWORD_ALLOWED_REGEX = /^[a-zA-Z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<
  */
 export function validateFullName(value) {
   if (value === undefined || value === null) {
-    return 'Nama lengkap wajib diisi.';
+    return 'Nama lengkap wajib diisi sesuai identitas mahasiswa.';
   }
   const str = String(value);
   const trimmed = str.trim();
   if (!trimmed) {
-    return 'Nama lengkap wajib diisi.';
+    return 'Nama lengkap wajib diisi sesuai identitas mahasiswa.';
   }
   if (trimmed.length < 3) {
-    return 'Nama lengkap minimal 3 karakter.';
+    return 'Nama lengkap minimal terdiri dari 3 karakter.';
   }
   if (trimmed.length > 100) {
     return 'Nama lengkap maksimal 100 karakter.';
   }
-  if (!FULL_NAME_REGEX.test(trimmed)) {
-    return 'Nama hanya boleh menggunakan huruf, spasi, titik, dan apostrof.';
-  }
-  if (!/[a-zA-Z]/.test(trimmed)) {
-    return 'Nama lengkap harus memuat minimal satu huruf alfabet dan tidak boleh hanya berisi spasi, titik, atau apostrof.';
+  if (!FULL_NAME_REGEX.test(trimmed) || !/[a-zA-Z]/.test(trimmed)) {
+    return 'Nama hanya boleh menggunakan huruf alfabet, spasi, titik, dan tanda petik.';
   }
   return null;
 }
@@ -51,14 +48,14 @@ export function validateFullName(value) {
  */
 export function validateEmail(value) {
   if (value === undefined || value === null) {
-    return 'Alamat email wajib diisi.';
+    return 'Alamat email aktif wajib diisi.';
   }
   const trimmed = String(value).trim();
   if (!trimmed) {
-    return 'Alamat email wajib diisi.';
+    return 'Alamat email aktif wajib diisi.';
   }
   if (!EMAIL_REGEX.test(trimmed)) {
-    return 'Format email belum valid. Contoh: nama@gmail.com.';
+    return 'Format email tidak valid. Contoh: nama@kampus.ac.id atau nama@gmail.com.';
   }
   if (trimmed.length > 255) {
     return 'Alamat email maksimal 255 karakter.';
@@ -79,24 +76,23 @@ export function normalizePhoneNumber(value) {
 
 /**
  * Validasi Nomor WhatsApp / HP:
- * - Harus diawali 08
- * - Total digit 10 hingga 15 digit
- * - Tidak boleh mengandung huruf
+ * - Harus diawali 08 atau 62 (+62)
+ * - Terdiri dari 10-14 digit angka
  */
 export function validatePhone(value) {
   if (value === undefined || value === null) {
-    return 'Nomor WhatsApp/HP wajib diisi.';
+    return 'Nomor WhatsApp wajib diisi untuk koordinasi transaksi/COD.';
   }
   const str = String(value).trim();
   if (!str) {
-    return 'Nomor WhatsApp/HP wajib diisi.';
+    return 'Nomor WhatsApp wajib diisi untuk koordinasi transaksi/COD.';
   }
   if (/[a-zA-Z]/.test(str)) {
-    return 'Nomor WhatsApp/HP tidak boleh memuat huruf.';
+    return 'Nomor WhatsApp harus diawali 08 atau 62 dan terdiri dari 10-14 digit angka.';
   }
   const cleaned = normalizePhoneNumber(str);
-  if (!/^08[0-9]{8,13}$/.test(cleaned)) {
-    return 'Masukkan nomor WhatsApp dengan format yang benar (diawali 08, 10–15 digit).';
+  if (!/^08\d{8,12}$/.test(cleaned)) {
+    return 'Nomor WhatsApp harus diawali 08 atau 62 dan terdiri dari 10-14 digit angka.';
   }
   return null;
 }
@@ -109,21 +105,21 @@ export function validatePhone(value) {
  */
 export function validatePassword(value) {
   if (value === undefined || value === null) {
-    return 'Password wajib diisi.';
+    return 'Kata sandi wajib dibuat.';
   }
   const str = String(value);
   if (!str) {
-    return 'Password wajib diisi.';
+    return 'Kata sandi wajib dibuat.';
   }
   const nonSpaceLength = str.replace(/\s/g, '').length;
   if (nonSpaceLength < 8) {
-    return 'Password minimal 8 karakter dan harus memenuhi ketentuan keamanan.';
+    return 'Kata sandi minimal 8 karakter (kombinasi huruf dan angka disarankan).';
   }
   if (!PASSWORD_ALLOWED_REGEX.test(str)) {
-    return 'Password hanya boleh memuat huruf, angka, dan simbol.';
+    return 'Kata sandi hanya boleh memuat huruf, angka, dan simbol.';
   }
   if (!/^(?=.*[A-Za-z])(?=.*\d)/.test(str)) {
-    return 'Password minimal 8 karakter dan harus memenuhi ketentuan keamanan (kombinasi huruf dan angka).';
+    return 'Kata sandi minimal 8 karakter (kombinasi huruf dan angka disarankan).';
   }
   return null;
 }
@@ -133,10 +129,10 @@ export function validatePassword(value) {
  */
 export function validateConfirmPassword(password, confirmPassword) {
   if (confirmPassword === undefined || confirmPassword === null || !String(confirmPassword)) {
-    return 'Ulangi password untuk konfirmasi.';
+    return 'Konfirmasi kata sandi tidak cocok dengan kata sandi di samping.';
   }
   if (String(password) !== String(confirmPassword)) {
-    return 'Konfirmasi password tidak cocok dengan password yang dimasukkan.';
+    return 'Konfirmasi kata sandi tidak cocok dengan kata sandi di samping.';
   }
   return null;
 }
@@ -146,23 +142,31 @@ export function validateConfirmPassword(password, confirmPassword) {
  */
 export function validateStoreName(value) {
   if (value === undefined || value === null) {
-    return 'Nama toko/lapak wajib diisi untuk penjual.';
+    return 'Nama toko wajib diisi (minimal 3 karakter, tidak menggunakan karakter khusus).';
   }
   const trimmed = String(value).trim();
-  if (!trimmed) {
-    return 'Nama toko/lapak wajib diisi untuk penjual.';
-  }
-  if (trimmed.length < 3) {
-    return 'Nama toko minimal 3 karakter.';
+  if (!trimmed || trimmed.length < 3) {
+    return 'Nama toko wajib diisi (minimal 3 karakter, tidak menggunakan karakter khusus).';
   }
   if (trimmed.length > 100) {
     return 'Nama toko maksimal 100 karakter.';
   }
-  if (!/[a-zA-Z]/.test(trimmed)) {
-    return 'Nama toko tidak boleh hanya terdiri dari angka atau simbol, harus memuat huruf.';
+  if (!/[a-zA-Z]/.test(trimmed) || !STORE_NAME_REGEX.test(trimmed)) {
+    return 'Nama toko wajib diisi (minimal 3 karakter, tidak menggunakan karakter khusus).';
   }
-  if (!STORE_NAME_REGEX.test(trimmed)) {
-    return 'Nama toko memuat simbol yang tidak diperbolehkan.';
+  return null;
+}
+
+/**
+ * Validasi Deskripsi Toko (Seller)
+ */
+export function validateStoreDescription(value) {
+  if (value === undefined || value === null) {
+    return 'Deskripsi singkat tokomu wajib diisi (minimal 10 karakter).';
+  }
+  const trimmed = String(value).trim();
+  if (!trimmed || trimmed.length < 10) {
+    return 'Deskripsi singkat tokomu wajib diisi (minimal 10 karakter).';
   }
   return null;
 }
@@ -172,22 +176,16 @@ export function validateStoreName(value) {
  */
 export function validateLocation(value) {
   if (value === undefined || value === null) {
-    return 'Detail lokasi/area kost wajib diisi untuk penjual.';
+    return 'Detail lokasi/area kost wajib diisi (minimal 5 karakter).';
   }
   const trimmed = String(value).trim();
-  if (!trimmed) {
-    return 'Detail lokasi/area kost wajib diisi untuk penjual.';
-  }
-  if (trimmed.length < 5) {
-    return 'Detail lokasi minimal 5 karakter.';
+  if (!trimmed || trimmed.length < 5) {
+    return 'Detail lokasi/area kost wajib diisi (minimal 5 karakter).';
   }
   if (trimmed.length > 150) {
     return 'Detail lokasi maksimal 150 karakter.';
   }
-  if (!/[a-zA-Z]/.test(trimmed)) {
-    return 'Detail lokasi tidak boleh hanya terdiri dari angka atau simbol, harus memuat informasi lokasi yang bermakna.';
-  }
-  if (!LOCATION_REGEX.test(trimmed)) {
+  if (!/[a-zA-Z]/.test(trimmed) || !LOCATION_REGEX.test(trimmed)) {
     return 'Detail lokasi memuat simbol yang tidak diperbolehkan.';
   }
   return null;
@@ -290,3 +288,30 @@ export function validateCategoryName(value) {
   }
   return null;
 }
+
+export const ID_CARD_INVALID_ERROR =
+  'Format URL foto identitas tidak valid. Foto harus diunggah melalui endpoint berkas.';
+
+/**
+ * Validasi URL Berkas Foto KTM Seller:
+ * - Wajib diisi untuk pendaftaran seller
+ * - Tidak boleh data:image/ (Base64 ditolak)
+ * - Harus diawali /uploads/verifications/ atau https://
+ */
+export function validateIdCardUrl(value) {
+  if (value === undefined || value === null) {
+    return 'Foto Kartu Tanda Mahasiswa (KTM) wajib diunggah untuk verifikasi toko.';
+  }
+  const str = String(value).trim();
+  if (!str) {
+    return 'Foto Kartu Tanda Mahasiswa (KTM) wajib diunggah untuk verifikasi toko.';
+  }
+  if (str.startsWith('data:image/') || str.includes('data:image/')) {
+    return ID_CARD_INVALID_ERROR;
+  }
+  if (!str.startsWith('/uploads/verifications/') && !/^https:\/\/[^\s]+$/i.test(str)) {
+    return ID_CARD_INVALID_ERROR;
+  }
+  return null;
+}
+

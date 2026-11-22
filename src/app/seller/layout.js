@@ -11,7 +11,7 @@ export const metadata = {
 export default async function SellerLayout({ children }) {
   const seller = await requireApprovedSeller();
 
-  const storeRes = await query(`SELECT id, name, location FROM stores WHERE user_id = $1`, [
+  const storeRes = await query(`SELECT id, name, location, image_url FROM stores WHERE user_id = $1`, [
     seller.id,
   ]);
   const store = storeRes.rows[0];

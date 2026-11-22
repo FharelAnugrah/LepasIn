@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -151,9 +152,22 @@ export default function SellerSidebar({ user, store, newOrdersCount = 0 }) {
             </Link>
 
             <div className="flex items-center gap-2.5 p-3 rounded-2xl surface-3d">
-              <div className="w-9 h-9 rounded-xl icon-plinth-navy text-white font-bold flex items-center justify-center shrink-0 uppercase text-xs">
-                {store?.name ? store.name.charAt(0) : 'T'}
-              </div>
+              {store?.image_url ? (
+                <div className="relative w-9 h-9 rounded-xl overflow-hidden shrink-0 border border-border-subtle bg-surface-muted">
+                  <Image
+                    src={store.image_url}
+                    alt={store.name || 'Lapak'}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                    sizes="36px"
+                  />
+                </div>
+              ) : (
+                <div className="w-9 h-9 rounded-xl icon-plinth-navy text-white font-bold flex items-center justify-center shrink-0 uppercase text-xs">
+                  {store?.name ? store.name.charAt(0) : 'T'}
+                </div>
+              )}
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-bold text-ink truncate">
                   {store?.name || 'Lapak Saya'}

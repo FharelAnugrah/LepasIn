@@ -14,11 +14,19 @@ export default function ReviewForm({ orderItemId, productName }) {
   const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [reviewError, setReviewError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
+
+    if (!rating || rating < 1 || rating > 5 || !comment || comment.trim().length < 5) {
+      setReviewError('Silakan berikan bintang 1-5 dan tulis ulasan minimal 5 karakter.');
+      return;
+    }
+
+    setReviewError('');
     setLoading(true);
 
     try {
@@ -35,7 +43,13 @@ export default function ReviewForm({ orderItemId, productName }) {
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.error || 'Gagal mengirim ulasan');
+        const errorMsg =
+          data.details?.comment?.[0] ||
+          data.details?.rating?.[0] ||
+          data.error ||
+          'Gagal mengirim ulasan';
+        setReviewError(errorMsg);
+        toast.error(errorMsg);
         setLoading(false);
         return;
       }
@@ -92,7 +106,12 @@ export default function ReviewForm({ orderItemId, productName }) {
             type="button"
             onMouseEnter={() => setHoverRating(starVal)}
             onMouseLeave={() => setHoverRating(0)}
-            onClick={() => setRating(starVal)}
+            onClick={() => {
+              setRating(starVal);
+              if (comment.trim().length >= 5 && reviewError) {
+                setReviewError('');
+              }
+            }}
             className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-surface transition-colors"
             aria-label={`Beri rating ${starVal} bintang`}
             aria-pressed={rating === starVal}
@@ -125,9 +144,21 @@ export default function ReviewForm({ orderItemId, productName }) {
           placeholder="Tulis pengalamanmu (misal: barang mulus sesuai foto, penjual tepat waktu saat COD)..."
           rows={2}
           value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          className="w-full p-3 rounded-lg bg-surface text-base md:text-sm text-ink placeholder:text-ink-muted border border-border-subtle outline-none focus:border-brand-blue focus:ring-3 focus:ring-brand-blue-soft"
+          onChange={(e) => {
+            setComment(e.target.value);
+            if (reviewError) setReviewError('');
+          }}
+          className={`w-full p-3 rounded-lg bg-surface text-base md:text-sm text-ink placeholder:text-ink-muted border outline-none focus:ring-3 focus:ring-brand-blue-soft transition-colors ${
+            reviewError
+              ? 'border-danger-text focus:border-danger-text'
+              : 'border-border-subtle focus:border-brand-blue'
+          }`}
         />
+        {reviewError && (
+          <p role="alert" className="text-xs text-danger-text font-medium mt-1">
+            {reviewError}
+          </p>
+        )}
       </div>
 
       <div className="flex items-center justify-end gap-2">

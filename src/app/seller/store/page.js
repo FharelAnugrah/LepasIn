@@ -12,7 +12,7 @@ export default async function SellerStorePage() {
   const seller = await requireApprovedSeller();
 
   const storeRes = await query(
-    `SELECT s.id, s.name, s.description, s.location, s.campus_id,
+    `SELECT s.id, s.name, s.description, s.location, s.campus_id, s.image_url,
             cp.name AS campus_name, cp.short_name AS campus_short_name, cp.city AS campus_city
      FROM stores s
      LEFT JOIN campuses cp ON cp.id = s.campus_id
@@ -34,7 +34,7 @@ export default async function SellerStorePage() {
 
   return (
     <StoreSettingsClient
-      store={store || { name: '', location: '', description: '', campus_id: null }}
+      store={store || { name: '', location: '', description: '', campus_id: null, image_url: null }}
       initialCampus={initialCampus}
       campuses={campusesRes.rows}
     />

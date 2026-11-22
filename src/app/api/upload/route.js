@@ -8,10 +8,10 @@ export const dynamic = 'force-dynamic';
 
 const ALLOWED_FOLDERS = ['products', 'stores', 'avatars', 'verifications'];
 
-// Untuk verifikasi KTM identitas: format wajib JPG/JPEG dan PNG, maksimal 10 MB
-const VERIFICATION_MIMES = ['image/jpeg', 'image/png'];
-const VERIFICATION_EXTS = ['.jpg', '.jpeg', '.png'];
-const MAX_VERIFICATION_SIZE = 10 * 1024 * 1024; // 10 MB
+// Untuk verifikasi KTM identitas: format gambar (JPG, PNG, WebP), maksimal 5 MB
+const VERIFICATION_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
+const VERIFICATION_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
+const MAX_VERIFICATION_SIZE = 5 * 1024 * 1024; // 5 MB
 
 // Untuk umum (produk, avatar, toko): JPEG, PNG, dan WebP, maksimal 10 MB
 const GENERAL_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -63,7 +63,7 @@ export async function POST(request) {
   try {
     const contentLength = parseInt(request.headers.get('content-length') || '0', 10);
     // Jika ukuran payload awal jelas melampaui batas maksimal 10 MB (tambah margin header ~128KB)
-    if (contentLength > MAX_VERIFICATION_SIZE + 131072) {
+    if (contentLength > MAX_GENERAL_SIZE + 131072) {
       return NextResponse.json(
         { error: 'Ukuran foto terlalu besar. Maksimal 10 MB per foto.' },
         { status: 400 }
@@ -101,21 +101,21 @@ export async function POST(request) {
     if (targetFolder === 'verifications') {
       if (!VERIFICATION_MIMES.includes(mimeType)) {
         return NextResponse.json(
-          { error: 'Format foto ditolak. Hanya format JPG/JPEG dan PNG yang diperbolehkan.' },
+          { error: 'Format berkas harus berupa gambar (JPG, PNG, WebP) dengan ukuran maksimal 5 MB.' },
           { status: 400 }
         );
       }
 
       if (file.name && !VERIFICATION_EXTS.includes(originalExt) && originalExt !== '') {
         return NextResponse.json(
-          { error: 'Format file tidak sesuai. Hanya ekstensi JPG/JPEG dan PNG yang diperbolehkan.' },
+          { error: 'Format berkas harus berupa gambar (JPG, PNG, WebP) dengan ukuran maksimal 5 MB.' },
           { status: 400 }
         );
       }
 
       if (file.size > MAX_VERIFICATION_SIZE) {
         return NextResponse.json(
-          { error: 'Ukuran foto terlalu besar. Maksimal 10 MB per foto.' },
+          { error: 'Format berkas harus berupa gambar (JPG, PNG, WebP) dengan ukuran maksimal 5 MB.' },
           { status: 400 }
         );
       }

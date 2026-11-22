@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Store, MapPin } from 'lucide-react';
+import Image from 'next/image';
+import { Store, MapPin, Camera, UploadCloud, Trash2, Loader2 } from 'lucide-react';
 import Input, { Textarea } from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import CampusSelector from '@/components/ui/CampusSelector';
 import { useToast } from '@/components/ui/Toast';
-import { validateStoreName, validateLocation } from '@/lib/validation';
+import { validateStoreName, validateStoreDescription, validateLocation } from '@/lib/validation';
 
 export default function StoreSettingsClient({ store, initialCampus, campuses }) {
   const router = useRouter();
@@ -17,16 +18,65 @@ export default function StoreSettingsClient({ store, initialCampus, campuses }) 
   const [location, setLocation] = useState(store?.location || '');
   const [description, setDescription] = useState(store?.description || '');
   const [campus, setCampus] = useState(initialCampus);
+  const [imageUrl, setImageUrl] = useState(store?.image_url || '');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+
+    const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+    const ext = file.name ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase() : '';
+
+    if (!validMimes.includes(file.type.toLowerCase()) && !validExtensions.includes(ext)) {
+      toast.error('Format foto harus berupa JPG, PNG, atau WebP.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran foto toko maksimal 5 MB.');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'stores');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal mengunggah foto toko');
+      }
+
+      setImageUrl(data.url);
+      toast.success('Foto toko berhasil diunggah.');
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Gagal mengunggah foto');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const validateForm = () => {
     const errs = {};
     const nameErr = validateStoreName(name);
     if (nameErr) errs.name = nameErr;
 
+    const descErr = validateStoreDescription(description);
+    if (descErr) errs.description = descErr;
+
     if (!campus || !campus.id || Number(campus.id) <= 0) {
-      errs.campus = 'Kampus toko wajib dipilih.';
+      errs.campus = 'Asal kampus wajib dipilih untuk mendaftarkan toko ke direktori kampus.';
     }
 
     if (location) {
@@ -59,6 +109,7 @@ export default function StoreSettingsClient({ store, initialCampus, campuses }) 
           campus_id: campus.id,
           location: location.trim(),
           description: description.trim(),
+          image_url: imageUrl ? imageUrl.trim() : null,
         }),
       });
 
@@ -94,6 +145,86 @@ export default function StoreSettingsClient({ store, initialCampus, campuses }) 
 
       <div className="bg-surface border border-border-subtle rounded-xl p-6 md:p-8">
         <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Upload Foto / Logo Toko */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-5 border-b border-border-subtle">
+            <div className="relative group shrink-0">
+              <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-border-subtle bg-surface-muted shadow-inner flex items-center justify-center">
+                {imageUrl ? (
+                  <Image
+                    src={imageUrl}
+                    alt={name || 'Logo Toko'}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                    sizes="96px"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-navy-900 text-campus-gold font-bold text-3xl flex items-center justify-center uppercase select-none">
+                    {name ? name.charAt(0) : <Store className="w-8 h-8" />}
+                  </div>
+                )}
+                {uploadingImage && (
+                  <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-xs flex items-center justify-center text-white">
+                    <Loader2 className="w-6 h-6 animate-spin" aria-hidden="true" />
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage}
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center shadow-md hover:bg-brand-blue-hover transition-colors"
+                title="Unggah Foto Toko"
+                aria-label="Unggah Foto Toko"
+              >
+                <Camera className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center sm:items-start text-center sm:text-left gap-1.5 flex-1 min-w-0">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImageUpload(f);
+                  e.target.value = '';
+                }}
+                className="hidden"
+              />
+              <span className="text-sm font-bold text-ink">Foto / Logo Toko</span>
+              <p className="text-xs text-ink-muted leading-relaxed">
+                Tampilkan foto etalase, logo lapak, atau identitas tokomu. Format JPG, PNG, atau WebP (maks. 5 MB).
+              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="xs"
+                  icon={uploadingImage ? Loader2 : UploadCloud}
+                  loading={uploadingImage}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {imageUrl ? 'Ganti Foto' : 'Unggah Foto'}
+                </Button>
+                {imageUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    disabled={uploadingImage}
+                    onClick={() => setImageUrl('')}
+                    className="text-danger-text hover:bg-danger-bg"
+                    icon={Trash2}
+                  >
+                    Hapus
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <Input
             id="store-name-input"
             label="Nama Toko / Lapak"
@@ -191,8 +322,19 @@ export default function StoreSettingsClient({ store, initialCampus, campuses }) 
             label="Deskripsi / Catatan Lapak"
             placeholder="Tuliskan info barang yang sering kamu jual atau jam ketemuan COD toko..."
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              if (fieldErrors.description) {
+                setFieldErrors((prev) => {
+                  const n = { ...prev };
+                  delete n.description;
+                  return n;
+                });
+              }
+            }}
+            error={fieldErrors.description}
             rows={3}
+            required
           />
 
           <div className="pt-4 border-t border-border-subtle">

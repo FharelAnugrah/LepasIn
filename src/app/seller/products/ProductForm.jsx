@@ -12,6 +12,7 @@ import {
   PRODUCT_NAME_MIN_LENGTH,
   normalizeProductName,
   validateProductName,
+  validateProductImageUrl,
 } from '@/lib/product-validation';
 
 const VALID_CONDITIONS = ['like_new', 'good', 'fair', 'minor_defect'];
@@ -22,20 +23,20 @@ const VALID_CONDITIONS = ['like_new', 'good', 'fair', 'minor_defect'];
 function validateRupiahField(rawValue, label, { required = false } = {}) {
   const str = String(rawValue ?? '').trim();
   if (!str) {
-    return { error: required ? `${label} wajib diisi.` : null, str: '' };
+    return { error: required ? 'Harga barang minimal Rp1.000.' : null, str: '' };
   }
   if (/^0\d+/.test(str)) {
     return {
-      error: `${label} tidak boleh diawali dengan angka 0 (contoh: 050000). Masukkan nominal yang valid tanpa awalan 0.`,
+      error: 'Harga barang minimal Rp1.000.',
       str,
     };
   }
   if (!/^-?\d+$/.test(str)) {
-    return { error: `${label} harus berupa angka bulat.`, str };
+    return { error: 'Harga barang minimal Rp1.000.', str };
   }
   const num = Number(str);
   if (num < 1000) {
-    return { error: `${label} minimal Rp 1.000 dan tidak boleh bernilai Rp 0.`, str };
+    return { error: 'Harga barang minimal Rp1.000.', str };
   }
   if (num > 100000000) {
     return { error: `${label} maksimal Rp 100.000.000.`, str };
@@ -49,21 +50,18 @@ function validateRupiahField(rawValue, label, { required = false } = {}) {
 function validateStockField(rawValue, minStock) {
   const str = String(rawValue ?? '').trim();
   if (!str) {
-    return { error: 'Jumlah stok wajib diisi.', str: '' };
+    return { error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).', str: '' };
   }
   if (/^0\d+/.test(str)) {
-    return { error: 'Jumlah stok tidak boleh diawali dengan angka 0 (contoh: 05).', str };
+    return { error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).', str };
   }
   if (!/^-?\d+$/.test(str)) {
-    return { error: 'Stok harus berupa bilangan bulat.', str };
+    return { error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).', str };
   }
   const num = Number(str);
-  if (num < minStock) {
+  if (num < minStock || num < 0) {
     return {
-      error:
-        minStock >= 1
-          ? 'Jumlah stok minimal 1 barang dan tidak boleh bernilai 0.'
-          : 'Jumlah stok minimal 0.',
+      error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).',
       str,
     };
   }
@@ -93,7 +91,7 @@ function validateProductFields({
   }
 
   if (!categoryId || Number(categoryId) <= 0 || !Number.isInteger(Number(categoryId))) {
-    newErrors.category_id = ['Kategori wajib dipilih.'];
+    newErrors.category_id = ['Silakan pilih salah satu kategori barang.'];
   }
 
   if (!VALID_CONDITIONS.includes(condition)) {
@@ -127,13 +125,21 @@ function validateProductFields({
   }
 
   if (images.length === 0) {
-    newErrors.image_urls = [emptyImageMessage];
+    newErrors.image_urls = ['Wajib mengunggah minimal 1 foto produk yang jelas.'];
   } else {
     for (let i = 0; i < images.length; i++) {
       const img = images[i];
-      if (img instanceof File && img.size > 2 * 1024 * 1024) {
-        newErrors.image_urls = [`Ukuran foto ke-${i + 1} melebihi batas maksimal 2 MB.`];
-        break;
+      if (img instanceof File) {
+        if (img.size > 2 * 1024 * 1024) {
+          newErrors.image_urls = [`Ukuran foto ke-${i + 1} melebihi batas maksimal 2 MB.`];
+          break;
+        }
+      } else if (typeof img === 'string') {
+        const check = validateProductImageUrl(img);
+        if (!check.valid) {
+          newErrors.image_urls = [check.error];
+          break;
+        }
       }
     }
   }
@@ -182,9 +188,7 @@ export default function ProductForm({
   const [errors, setErrors] = useState({});
   const [nameTouched, setNameTouched] = useState(false);
 
-  const emptyImageMessage = isEdit
-    ? 'Mohon sediakan minimal 1 foto barang.'
-    : 'Mohon unggah minimal 1 foto barang.';
+  const emptyImageMessage = 'Wajib mengunggah minimal 1 foto produk yang jelas.';
 
   const clearFieldError = (field) => {
     if (errors[field]) {
@@ -195,27 +199,7 @@ export default function ProductForm({
   const handleNameChange = (e) => {
     const nextValue = e.target.value;
     setName(nextValue);
-
-    const liveValidation = validateProductName(nextValue);
-    if (liveValidation.valid) {
-      clearFieldError('name');
-      return;
-    }
-
-    const hasExistingError = Boolean(errors.name);
-    const shouldShowLiveError =
-      liveValidation.code === 'DISALLOWED_CHARS' ||
-      liveValidation.code === 'TOO_LONG' ||
-      (liveValidation.code === 'NO_ALPHANUMERIC' &&
-        liveValidation.normalizedName.length >= PRODUCT_NAME_MIN_LENGTH) ||
-      nameTouched ||
-      hasExistingError;
-
-    if (shouldShowLiveError) {
-      setErrors((prev) => ({ ...prev, name: [liveValidation.error] }));
-    } else {
-      clearFieldError('name');
-    }
+    clearFieldError('name');
   };
 
   const handleNameBlur = () => {

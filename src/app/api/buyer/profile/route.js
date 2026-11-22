@@ -13,7 +13,7 @@ export async function PATCH(request) {
     }
 
     const body = await request.json();
-    const { name, phone, campus_id } = body;
+    const { name, phone, campus_id, avatar_url } = body;
 
     const nameErr = validateFullName(name);
     if (nameErr) {
@@ -28,15 +28,31 @@ export async function PATCH(request) {
     }
 
     const parsedCampusId = campus_id ? Number(campus_id) : null;
+    const cleanAvatarUrl =
+      typeof avatar_url === 'string' && avatar_url.trim() ? avatar_url.trim() : null;
+
+    if (
+      cleanAvatarUrl &&
+      (cleanAvatarUrl.startsWith('data:image/') ||
+        (!cleanAvatarUrl.startsWith('/uploads/avatars/') &&
+          !cleanAvatarUrl.startsWith('/uploads/') &&
+          !/^https:\/\/[^\s]+$/i.test(cleanAvatarUrl)))
+    ) {
+      return NextResponse.json(
+        { error: 'Format URL gambar tidak valid. Gambar harus diunggah melalui endpoint berkas.' },
+        { status: 400 }
+      );
+    }
 
     const result = await query(
       `UPDATE users
        SET name = $1,
            phone = $2,
-           campus_id = $3
-       WHERE id = $4
-       RETURNING id, name, email, phone, campus_id`,
-      [name.trim(), phone ? phone.trim() : null, parsedCampusId, user.id]
+           campus_id = $3,
+           avatar_url = $4
+       WHERE id = $5
+       RETURNING id, name, email, phone, campus_id, avatar_url`,
+      [name.trim(), phone ? phone.trim() : null, parsedCampusId, cleanAvatarUrl, user.id]
     );
 
     return NextResponse.json({

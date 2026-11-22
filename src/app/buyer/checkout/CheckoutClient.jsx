@@ -20,6 +20,7 @@ import Button from '@/components/ui/Button';
 import Input, { Textarea } from '@/components/ui/Input';
 import { ConditionBadge, formatRupiah } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
+import { validatePhone } from '@/lib/validation';
 
 function CheckoutItemImage({ src, alt }) {
   const [error, setError] = useState(false);
@@ -103,9 +104,32 @@ export default function CheckoutClient({
         [field]: value,
       },
     }));
+
+    const errorKeyMap = {
+      shipping_recipient: `${storeId}_recipient`,
+      shipping_phone: `${storeId}_phone`,
+      shipping_address: `${storeId}_address`,
+    };
+    const errKey = errorKeyMap[field];
+    if (errKey) {
+      setFormErrors((prev) => {
+        if (!prev[errKey]) return prev;
+        const next = { ...prev };
+        delete next[errKey];
+        return next;
+      });
+    }
   };
 
   const handleSavedAddressPick = (storeId, addrId) => {
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      delete next[`${storeId}_recipient`];
+      delete next[`${storeId}_phone`];
+      delete next[`${storeId}_address`];
+      return next;
+    });
+
     if (!addrId) {
       setStoreForms((prev) => ({
         ...prev,
@@ -155,13 +179,14 @@ export default function CheckoutClient({
       const form = storeForms[group.storeId];
       if (form.delivery_method === 'delivery') {
         if (!form.shipping_recipient?.trim()) {
-          errors[`${group.storeId}_recipient`] = 'Nama penerima wajib diisi';
+          errors[`${group.storeId}_recipient`] = 'Nama penerima paket/COD wajib diisi.';
         }
-        if (!form.shipping_phone?.trim()) {
-          errors[`${group.storeId}_phone`] = 'Nomor telepon penerima wajib diisi';
+        const phoneErr = validatePhone(form.shipping_phone);
+        if (phoneErr) {
+          errors[`${group.storeId}_phone`] = phoneErr;
         }
         if (!form.shipping_address?.trim()) {
-          errors[`${group.storeId}_address`] = 'Alamat pengiriman kost wajib diisi';
+          errors[`${group.storeId}_address`] = 'Detail alamat wajib diisi selengkap mungkin (nama jalan/gedung/nomor kamar).';
         }
       }
 

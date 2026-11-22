@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { query, withTransaction } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { extractAndProcessImages } from '@/lib/image-util';
-import { createProductNameSchema } from '@/lib/product-validation';
+import {
+  createProductNameSchema,
+  createProductImageUrlSchema,
+} from '@/lib/product-validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +17,7 @@ const priceValidator = z
       const str = String(val).trim();
       return str !== '';
     },
-    { message: 'Harga lepas wajib diisi.' }
+    { message: 'Harga barang minimal Rp1.000.' }
   )
   .refine(
     (val) => {
@@ -22,15 +25,15 @@ const priceValidator = z
       return !/^0\d+/.test(str);
     },
     {
-      message: 'Harga lepas tidak boleh diawali dengan angka 0 (contoh: 050000). Masukkan nominal yang valid tanpa awalan 0.',
+      message: 'Harga barang minimal Rp1.000.',
     }
   )
   .transform((val) => Number(val))
   .pipe(
     z
-      .number({ invalid_type_error: 'Harga lepas harus berupa angka.' })
-      .int('Harga lepas harus berupa angka bulat.')
-      .min(1000, 'Harga lepas minimal Rp 1.000 dan tidak boleh bernilai Rp 0.')
+      .number({ invalid_type_error: 'Harga barang minimal Rp1.000.' })
+      .int('Harga barang minimal Rp1.000.')
+      .min(1000, 'Harga barang minimal Rp1.000.')
       .max(100000000, 'Harga lepas maksimal Rp 100.000.000.')
   );
 
@@ -63,24 +66,25 @@ const stockValidator = z.preprocess(
   (val) => (val === undefined || val === null ? '' : String(val).trim()),
   z
     .string()
-    .min(1, 'Jumlah stok wajib diisi.')
+    .min(1, 'Jumlah stok minimal 1 buah (angka bulat non-negatif).')
     .refine((str) => !/^0\d+/.test(str), {
-      message: 'Jumlah stok tidak boleh diawali dengan angka 0 (contoh: 05).',
+      message: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).',
     })
     .refine((str) => /^-?\d+$/.test(str), {
-      message: 'Stok harus berupa bilangan bulat.',
+      message: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).',
     })
     .transform((str) => Number(str))
     .pipe(
       z
-        .number({ invalid_type_error: 'Stok harus berupa angka.' })
-        .int('Stok harus berupa bilangan bulat.')
-        .min(1, 'Jumlah stok minimal 1 barang dan tidak boleh bernilai 0.')
+        .number({ invalid_type_error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).' })
+        .int('Jumlah stok minimal 1 buah (angka bulat non-negatif).')
+        .min(1, 'Jumlah stok minimal 1 buah (angka bulat non-negatif).')
         .max(10000, 'Jumlah stok maksimal 10.000.')
     )
 );
 
 const productNameValidator = createProductNameSchema(z);
+const productImageUrlValidator = createProductImageUrlSchema(z);
 
 const productSchema = z
   .object({
@@ -90,8 +94,11 @@ const productSchema = z
     original_price: originalPriceValidator,
     stock: stockValidator,
     condition: z.enum(['like_new', 'good', 'fair', 'minor_defect']),
-    category_id: z.coerce.number().int().positive('Kategori wajib dipilih'),
-    image_urls: z.array(z.string().trim().min(1, 'Path/Data foto tidak valid')).min(1, 'Mohon unggah minimal 1 foto barang.').max(5, 'Maksimal 5 gambar'),
+    category_id: z.coerce.number().int().positive('Silakan pilih salah satu kategori barang.'),
+    image_urls: z
+      .array(productImageUrlValidator)
+      .min(1, 'Wajib mengunggah minimal 1 foto produk yang jelas.')
+      .max(5, 'Maksimal 5 foto produk.'),
   })
   .refine(
     (data) => {

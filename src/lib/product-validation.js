@@ -1,4 +1,4 @@
-export const PRODUCT_NAME_MIN_LENGTH = 5;
+export const PRODUCT_NAME_MIN_LENGTH = 3;
 export const PRODUCT_NAME_MAX_LENGTH = 100;
 
 export const ALLOWED_PRODUCT_NAME_REGEX = /^[A-Za-z0-9 .,()&+\/|-]+$/;
@@ -45,23 +45,23 @@ function getDisallowedProductNameChars(value) {
 function formatDisallowedCharsMessage(disallowedChars) {
   const visible = disallowedChars.filter(isPrintableChar);
   if (visible.length === 0) {
-    return `Nama produk mengandung karakter yang tidak diperbolehkan. Hanya boleh berisi ${ALLOWED_CHARS_DESCRIPTION}.`;
+    return `Nama barang mengandung karakter yang tidak diperbolehkan. Hanya boleh berisi ${ALLOWED_CHARS_DESCRIPTION}.`;
   }
   const preview =
     visible.length > 3 ? `${visible.slice(0, 3).join(', ')}, ...` : visible.join(', ');
-  return `Karakter tidak diperbolehkan (${preview}). Nama produk hanya boleh berisi ${ALLOWED_CHARS_DESCRIPTION}.`;
+  return `Karakter tidak diperbolehkan (${preview}). Nama barang hanya boleh berisi ${ALLOWED_CHARS_DESCRIPTION}.`;
 }
 
 /**
  * Memvalidasi nama produk sesuai aturan karakter, huruf/angka wajib,
- * panjang 5-100 karakter, dan normalisasi spasi berlebih.
+ * panjang minimal 3 karakter, dan normalisasi spasi berlebih.
  */
 export function validateProductName(rawValue) {
   if (rawValue === undefined || rawValue === null) {
     return {
       valid: false,
       code: 'REQUIRED',
-      error: 'Nama produk wajib diisi.',
+      error: 'Nama barang wajib diisi (minimal 3 karakter).',
       normalizedName: '',
     };
   }
@@ -70,7 +70,7 @@ export function validateProductName(rawValue) {
     return {
       valid: false,
       code: 'INVALID_TYPE',
-      error: 'Nama produk harus berupa teks.',
+      error: 'Nama barang harus berupa teks.',
       normalizedName: '',
     };
   }
@@ -81,7 +81,7 @@ export function validateProductName(rawValue) {
     return {
       valid: false,
       code: 'REQUIRED',
-      error: 'Nama produk wajib diisi.',
+      error: 'Nama barang wajib diisi (minimal 3 karakter).',
       normalizedName: '',
     };
   }
@@ -100,7 +100,7 @@ export function validateProductName(rawValue) {
     return {
       valid: false,
       code: 'NO_ALPHANUMERIC',
-      error: 'Nama produk wajib mengandung minimal satu huruf atau angka.',
+      error: 'Nama barang wajib diisi (minimal 3 karakter).',
       normalizedName,
     };
   }
@@ -109,7 +109,7 @@ export function validateProductName(rawValue) {
     return {
       valid: false,
       code: 'TOO_SHORT',
-      error: `Nama produk minimal ${PRODUCT_NAME_MIN_LENGTH} karakter.`,
+      error: 'Nama barang wajib diisi (minimal 3 karakter).',
       normalizedName,
     };
   }
@@ -118,7 +118,7 @@ export function validateProductName(rawValue) {
     return {
       valid: false,
       code: 'TOO_LONG',
-      error: `Nama produk maksimal ${PRODUCT_NAME_MAX_LENGTH} karakter.`,
+      error: `Nama barang maksimal ${PRODUCT_NAME_MAX_LENGTH} karakter.`,
       normalizedName,
     };
   }
@@ -139,8 +139,8 @@ export function createProductNameSchema(z) {
     .string({
       error: (issue) =>
         issue.input === undefined || issue.input === null
-          ? 'Nama produk wajib diisi.'
-          : 'Nama produk harus berupa teks.',
+          ? 'Nama barang wajib diisi (minimal 3 karakter).'
+          : 'Nama barang harus berupa teks.',
     })
     .transform((val) => normalizeProductName(val))
     .superRefine((normalized, ctx) => {
@@ -153,3 +153,102 @@ export function createProductNameSchema(z) {
       }
     });
 }
+
+export const PRODUCT_IMAGE_INVALID_ERROR =
+  'Format URL gambar tidak valid. Gambar harus diunggah melalui endpoint berkas.';
+
+/**
+ * Memeriksa apakah URL gambar produk memenuhi ketentuan:
+ * - String non-kosong
+ * - Tidak mengandung data:image/ (Base64 ditolak)
+ * - Berupa path lokal /uploads/products/ atau URL HTTPS publik
+ */
+export function isValidProductImageUrl(url) {
+  if (typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith('data:image/')) return false;
+  return trimmed.startsWith('/uploads/products/') || /^https:\/\/[^\s]+$/i.test(trimmed);
+}
+
+/**
+ * Memvalidasi string URL gambar produk dengan error message yang spesifik dan solutif.
+ */
+export function validateProductImageUrl(url) {
+  if (url === undefined || url === null) {
+    return {
+      valid: false,
+      code: 'REQUIRED',
+      error: 'Wajib mengunggah minimal 1 foto produk yang jelas.',
+      url: '',
+    };
+  }
+
+  if (typeof url !== 'string') {
+    return {
+      valid: false,
+      code: 'INVALID_TYPE',
+      error: PRODUCT_IMAGE_INVALID_ERROR,
+      url: '',
+    };
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return {
+      valid: false,
+      code: 'REQUIRED',
+      error: 'Wajib mengunggah minimal 1 foto produk yang jelas.',
+      url: '',
+    };
+  }
+
+  if (trimmed.startsWith('data:image/')) {
+    return {
+      valid: false,
+      code: 'BASE64_NOT_ALLOWED',
+      error: PRODUCT_IMAGE_INVALID_ERROR,
+      url: trimmed,
+    };
+  }
+
+  if (!trimmed.startsWith('/uploads/products/') && !/^https:\/\/[^\s]+$/i.test(trimmed)) {
+    return {
+      valid: false,
+      code: 'INVALID_FORMAT',
+      error: PRODUCT_IMAGE_INVALID_ERROR,
+      url: trimmed,
+    };
+  }
+
+  return {
+    valid: true,
+    code: null,
+    error: null,
+    url: trimmed,
+  };
+}
+
+/**
+ * Membuat schema Zod untuk memvalidasi setiap elemen URL gambar produk di backend.
+ */
+export function createProductImageUrlSchema(z) {
+  return z
+    .string({
+      error: (issue) =>
+        issue.input === undefined || issue.input === null
+          ? 'Wajib mengunggah minimal 1 foto produk yang jelas.'
+          : PRODUCT_IMAGE_INVALID_ERROR,
+    })
+    .trim()
+    .superRefine((val, ctx) => {
+      const result = validateProductImageUrl(val);
+      if (!result.valid) {
+        ctx.addIssue({
+          code: 'custom',
+          message: result.error,
+        });
+      }
+    });
+}
+

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ShieldCheck,
   GraduationCap,
@@ -124,9 +125,22 @@ export default async function StoreProfilePage({ params }) {
         {/* Banner Profil Toko 3D */}
         <section className="surface-3d rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-4">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl icon-plinth-navy text-white font-bold text-2xl flex items-center justify-center shrink-0 uppercase">
-              {store.name.charAt(0)}
-            </div>
+            {store.image_url ? (
+              <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shrink-0 border border-border-subtle bg-surface-muted shadow-sm">
+                <Image
+                  src={store.image_url}
+                  alt={store.name}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                  sizes="(max-width: 768px) 64px, 80px"
+                />
+              </div>
+            ) : (
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl icon-plinth-navy text-white font-bold text-2xl flex items-center justify-center shrink-0 uppercase">
+                {store.name.charAt(0)}
+              </div>
+            )}
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
