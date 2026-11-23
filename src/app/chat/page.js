@@ -17,6 +17,7 @@ export default async function ChatPage({ searchParams }) {
   const initialOrderId = sp?.order_id ? Number(sp.order_id) : null;
   const initialStoreId = sp?.store_id ? Number(sp.store_id) : null;
   const initialProductId = sp?.product_id ? Number(sp.product_id) : null;
+  const initialBuyerId = sp?.buyer_id ? Number(sp.buyer_id) : null;
 
   if (!user) {
     let redirectUrl = '/chat';
@@ -55,6 +56,7 @@ export default async function ChatPage({ searchParams }) {
           initialOrderId={initialOrderId}
           initialStoreId={initialStoreId}
           initialProductId={initialProductId}
+          initialBuyerId={initialBuyerId}
         />
       </main>
     </div>
