@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { query } from '@/lib/db';
+import { withTransaction } from '@/lib/db';
+import {
+  GuardError,
+  findActiveOrdersByProduct,
+  countCompletedOrdersByProduct,
+  formatActiveOrderSummary,
+} from '@/lib/order-guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,20 +20,52 @@ export async function DELETE(request, { params }) {
     const { id } = await params;
     const productId = Number(id);
 
-    const result = await query(
-      `DELETE FROM products WHERE id = $1 RETURNING id, name`,
-      [productId]
-    );
-
-    if (result.rows.length === 0) {
-      return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
+    if (!productId) {
+      return NextResponse.json({ error: 'ID produk tidak valid' }, { status: 400 });
     }
+
+    const deletedProduct = await withTransaction(async (client) => {
+      const prodRes = await client.query(
+        `SELECT id, name FROM products WHERE id = $1 FOR UPDATE`,
+        [productId]
+      );
+
+      if (prodRes.rows.length === 0) {
+        throw new GuardError('Produk tidak ditemukan', 404);
+      }
+
+      const product = prodRes.rows[0];
+
+      // Opsi A: Tolak penghapusan selama produk masih terlibat dalam pesanan aktif
+      const activeOrders = await findActiveOrdersByProduct(client, productId);
+      if (activeOrders.length > 0) {
+        throw new GuardError(
+          `Produk masih dalam proses transaksi. Selesaikan transaski terlebih dahulu.`,
+          400
+        );
+      }
+
+      // Jaga arsip pesanan selesai dan ulasan pembeli (reviews.product_id bersifat NOT NULL + CASCADE)
+      const completedCount = await countCompletedOrdersByProduct(client, productId);
+      if (completedCount > 0) {
+        throw new GuardError(
+          `Produk memiliki ${completedCount} riwayat pesanan selesai dan tidak dapat dihapus demi menjaga arsip ulasan.`,
+          400
+        );
+      }
+
+      await client.query(`DELETE FROM products WHERE id = $1`, [productId]);
+      return product;
+    });
 
     return NextResponse.json({
       success: true,
-      message: `Produk "${result.rows[0].name}" berhasil dimoderasi dan dihapus`,
+      message: `Produk "${deletedProduct.name}" berhasil dimoderasi dan dihapus`,
     });
   } catch (error) {
+    if (error?.statusCode) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+    }
     console.error('Moderation delete product error:', error);
     return NextResponse.json(
       { error: 'Gagal menghapus produk' },

@@ -66,12 +66,28 @@ export async function POST(request) {
 
     await withTransaction(async (client) => {
       for (const orderData of storeOrders) {
-        // Ambil nama toko
-        const storeRes = await client.query('SELECT id, name FROM stores WHERE id = $1', [orderData.store_id]);
+        // Ambil nama toko dan kunci baris user penjual agar status toko konsisten selama transaksi
+        const storeRes = await client.query(
+          `SELECT s.id, s.name, s.user_id AS seller_user_id, u.seller_status
+           FROM stores s
+           JOIN users u ON u.id = s.user_id
+           WHERE s.id = $1
+           FOR UPDATE OF u`,
+          [orderData.store_id]
+        );
         if (storeRes.rows.length === 0) {
           throw new Error(`Toko dengan ID ${orderData.store_id} tidak ditemukan`);
         }
-        const storeName = storeRes.rows[0].name;
+        const storeRow = storeRes.rows[0];
+        if (storeRow.seller_user_id === user.id) {
+          throw new Error('Anda tidak dapat membeli produk dari toko Anda sendiri');
+        }
+        if (storeRow.seller_status !== 'approved') {
+          throw new Error(
+            `Toko "${storeRow.name}" sedang ditangguhkan atau tidak aktif sehingga pesanan tidak dapat dibuat.`
+          );
+        }
+        const storeName = storeRow.name;
 
         let totalAmount = 0;
         const verifiedItems = [];

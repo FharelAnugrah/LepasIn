@@ -61,6 +61,13 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Ulasan hanya dapat diberikan setelah pesanan berstatus Selesai' }, { status: 400 });
     }
 
+    if (!item.product_id) {
+      return NextResponse.json(
+        { error: 'Produk pada pesanan ini sudah tidak tersedia di katalog sehingga ulasan tidak dapat dikirim.' },
+        { status: 400 }
+      );
+    }
+
     // Cek apakah sudah pernah diulas
     const existingRes = await query(
       'SELECT id FROM reviews WHERE order_item_id = $1',

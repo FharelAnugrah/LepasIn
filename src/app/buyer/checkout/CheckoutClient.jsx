@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   ShieldCheck,
   CreditCard,
+  AlertTriangle,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input, { Textarea } from '@/components/ui/Input';
@@ -64,6 +65,10 @@ export default function CheckoutClient({
       acc[storeId] = {
         storeId,
         storeName: item.store_name,
+        storeActive:
+          item.store_active !== false &&
+          item.seller_status !== 'rejected' &&
+          item.seller_status !== 'pending',
         storeLocation: item.store_location,
         campusShortName: item.campus_short_name,
         campusCity: item.campus_city,
@@ -75,6 +80,9 @@ export default function CheckoutClient({
   }, {});
 
   const storeGroups = Object.values(groupedByStore);
+  const hasSuspendedStore = storeGroups.some((g) => !g.storeActive);
+  const hasStockIssue = items.some((it) => it.stock <= 0 || it.quantity > it.stock);
+  const hasBlockedItems = hasSuspendedStore || hasStockIssue;
 
   const initialAddressStr = formatAddressString(defaultAddress);
 
@@ -170,6 +178,10 @@ export default function CheckoutClient({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
+    if (hasBlockedItems) {
+      toast.error('Ada toko yang ditangguhkan atau stok barang tidak mencukupi. Silakan kembali ke keranjang terlebih dahulu.');
+      return;
+    }
     setFormErrors({});
 
     const errors = {};
@@ -280,7 +292,9 @@ export default function CheckoutClient({
             return (
               <section
                 key={group.storeId}
-                className="surface-3d rounded-2xl p-5 md:p-6 flex flex-col gap-5"
+                className={`surface-3d rounded-2xl p-5 md:p-6 flex flex-col gap-5 ${
+                  !group.storeActive ? 'border border-red-300' : ''
+                }`}
               >
                 {/* Header Toko */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-4">
@@ -289,9 +303,17 @@ export default function CheckoutClient({
                       <Store className="w-4 h-4" aria-hidden="true" />
                     </div>
                     <div>
-                      <h2 className="text-sm md:text-base font-bold text-ink">
-                        {group.storeName}
-                      </h2>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-sm md:text-base font-bold text-ink">
+                          {group.storeName}
+                        </h2>
+                        {!group.storeActive && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-danger-bg text-danger-text border border-red-200">
+                            <AlertTriangle className="w-3 h-3" aria-hidden="true" />
+                            <span>Toko Ditangguhkan</span>
+                          </span>
+                        )}
+                      </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted mt-0.5">
                         <span className="inline-flex items-center gap-1 font-semibold text-brand-blue">
                           <GraduationCap className="w-3.5 h-3.5" aria-hidden="true" />
@@ -310,6 +332,23 @@ export default function CheckoutClient({
                     </div>
                   </div>
                 </div>
+
+                {!group.storeActive && (
+                  <div
+                    role="alert"
+                    className="p-3 rounded-xl bg-danger-bg border border-red-200 text-danger-text text-xs font-medium flex items-center justify-between gap-3"
+                  >
+                    <span className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                      <span>
+                        Toko ini sedang ditangguhkan sehingga pesanan tidak dapat dibuat.
+                      </span>
+                    </span>
+                    <Link href="/buyer/cart" className="font-bold underline shrink-0">
+                      Kembali ke Keranjang
+                    </Link>
+                  </div>
+                )}
 
                 {/* List Barang */}
                 <div className="divide-y divide-border-subtle">
@@ -522,7 +561,17 @@ export default function CheckoutClient({
             </div>
           </div>
 
-          {Object.values(storeForms).every((f) => f.delivery_method === 'delivery') ? (
+          {hasBlockedItems ? (
+            <div
+              role="alert"
+              className="p-3.5 rounded-lg bg-danger-bg border border-red-200 text-danger-text text-xs leading-relaxed flex items-start gap-2 font-medium"
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                Terdapat toko yang sedang ditangguhkan atau stok barang tidak mencukupi. Hapus item bermasalah di keranjang untuk melanjutkan.
+              </span>
+            </div>
+          ) : Object.values(storeForms).every((f) => f.delivery_method === 'delivery') ? (
             <div className="p-3.5 rounded-lg bg-info-bg border border-brand-blue-border text-navy-900 text-xs leading-relaxed flex items-start gap-2 font-medium">
               <CreditCard className="w-4 h-4 text-brand-blue shrink-0 mt-0.5" aria-hidden="true" />
               <span>
@@ -543,6 +592,7 @@ export default function CheckoutClient({
             variant="primary"
             size="lg"
             loading={loading}
+            disabled={hasBlockedItems}
             className="w-full rounded-xl"
           >
             {Object.values(storeForms).every((f) => f.delivery_method === 'delivery')

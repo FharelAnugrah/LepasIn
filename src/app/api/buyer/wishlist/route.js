@@ -18,6 +18,26 @@ export async function POST(request) {
       return NextResponse.json({ error: 'ID produk tidak valid' }, { status: 400 });
     }
 
+    const prodCheck = await query(
+      `SELECT p.id, s.name AS store_name, u.seller_status
+       FROM products p
+       JOIN stores s ON s.id = p.store_id
+       JOIN users u ON u.id = s.user_id
+       WHERE p.id = $1`,
+      [productId]
+    );
+
+    if (prodCheck.rows.length === 0) {
+      return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
+    }
+
+    if (prodCheck.rows[0].seller_status !== 'approved') {
+      return NextResponse.json(
+        { error: `Toko "${prodCheck.rows[0].store_name}" sedang ditangguhkan atau tidak aktif.` },
+        { status: 400 }
+      );
+    }
+
     await query(
       `INSERT INTO wishlists (user_id, product_id)
        VALUES ($1, $2)

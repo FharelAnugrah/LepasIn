@@ -13,6 +13,7 @@ import {
   Minus,
   ShieldCheck,
   Package,
+  AlertTriangle,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { ConditionBadge, formatRupiah } from '@/components/ui/Badge';
@@ -52,6 +53,7 @@ export default function CartManager({ initialItems }) {
       acc[storeId] = {
         storeId,
         storeName: item.store_name,
+        storeActive: item.store_active !== false && item.seller_status !== 'rejected' && item.seller_status !== 'pending',
         campusShortName: item.campus_short_name,
         campusCity: item.campus_city,
         items: [],
@@ -62,6 +64,10 @@ export default function CartManager({ initialItems }) {
   }, {});
 
   const storeGroups = Object.values(groupedByStore);
+
+  const hasSuspendedStore = storeGroups.some((g) => !g.storeActive);
+  const hasStockIssue = items.some((item) => item.stock <= 0 || item.quantity > item.stock);
+  const hasBlockedItems = hasSuspendedStore || hasStockIssue;
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
@@ -188,7 +194,9 @@ export default function CartManager({ initialItems }) {
         {storeGroups.map((group) => (
           <section
             key={group.storeId}
-            className="surface-3d rounded-2xl overflow-hidden"
+            className={`surface-3d rounded-2xl overflow-hidden ${
+              !group.storeActive ? 'border border-red-300' : ''
+            }`}
           >
             {/* Header Toko (design2.md 5.5) */}
             <div className="px-4 py-3.5 bg-canvas border-b border-border-subtle flex flex-wrap items-center justify-between gap-2">
@@ -199,17 +207,41 @@ export default function CartManager({ initialItems }) {
                   <GraduationCap className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>{group.campusShortName}</span>
                 </span>
+                {!group.storeActive && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-danger-bg text-danger-text border border-red-200">
+                    <AlertTriangle className="w-3 h-3" aria-hidden="true" />
+                    <span>Toko Ditangguhkan</span>
+                  </span>
+                )}
               </div>
               <span className="text-xs text-ink-muted">{group.campusCity}</span>
             </div>
 
+            {!group.storeActive && (
+              <div
+                role="alert"
+                className="px-4 py-2.5 bg-danger-bg border-b border-red-200 text-danger-text text-xs font-medium flex items-center gap-2"
+              >
+                <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span>
+                  Toko ini sedang ditangguhkan atau tidak aktif. Hapus barang dari toko ini untuk melanjutkan checkout.
+                </span>
+              </div>
+            )}
+
             <div className="divide-y divide-border-subtle">
               {group.items.map((item) => {
                 const isItemLoading = loadingItemId === item.id;
+                const isOutOfStock = item.stock <= 0;
+                const exceedsStock = item.stock > 0 && item.quantity > item.stock;
+                const itemUnavailable = !group.storeActive || isOutOfStock;
+
                 return (
                   <div
                     key={item.id}
-                    className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                    className={`p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                      itemUnavailable ? 'bg-surface-muted/40 opacity-85' : ''
+                    }`}
                   >
                     <div className="flex items-center gap-3.5 flex-1 min-w-0">
                       <div className="relative w-18 h-18 rounded-xl bg-surface-muted overflow-hidden border border-border-subtle shrink-0">
@@ -217,17 +249,33 @@ export default function CartManager({ initialItems }) {
                       </div>
 
                       <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                        <Link
-                          href={`/products/${item.product_id}`}
-                          className="font-semibold text-sm text-ink line-clamp-1 hover:text-brand-blue transition-colors"
-                        >
-                          {item.product_name}
-                        </Link>
+                        {group.storeActive ? (
+                          <Link
+                            href={`/products/${item.product_id}`}
+                            className="font-semibold text-sm text-ink line-clamp-1 hover:text-brand-blue transition-colors"
+                          >
+                            {item.product_name}
+                          </Link>
+                        ) : (
+                          <span className="font-semibold text-sm text-ink-muted line-clamp-1">
+                            {item.product_name}
+                          </span>
+                        )}
                         <div className="flex flex-wrap items-center gap-2">
                           <ConditionBadge condition={item.condition} />
                           <span className="text-xs font-medium text-ink-muted tabular-nums">
                             {formatRupiah(item.price)} / unit
                           </span>
+                          {isOutOfStock && (
+                            <span className="text-[11px] font-semibold text-danger-text bg-danger-bg px-2 py-0.5 rounded-md border border-red-200">
+                              Stok habis
+                            </span>
+                          )}
+                          {exceedsStock && (
+                            <span className="text-[11px] font-semibold text-danger-text bg-danger-bg px-2 py-0.5 rounded-md border border-red-200">
+                              Tersisa {item.stock} item
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -249,7 +297,7 @@ export default function CartManager({ initialItems }) {
                         <button
                           type="button"
                           onClick={() => handleUpdateQuantity(item.id, item.quantity + 1, item.product_name)}
-                          disabled={item.quantity >= item.stock || isItemLoading}
+                          disabled={!group.storeActive || item.quantity >= item.stock || isItemLoading}
                           className="w-10 h-10 md:w-8 md:h-8 rounded-md flex items-center justify-center text-ink hover:bg-surface disabled:opacity-30 transition-colors"
                           aria-label={`Tambah jumlah ${item.product_name}`}
                         >
@@ -305,14 +353,32 @@ export default function CartManager({ initialItems }) {
           </div>
         </div>
 
-        <div className="p-3 rounded-lg bg-info-bg border border-brand-blue-border text-navy-900 text-xs leading-relaxed flex items-center gap-2 font-medium">
-          <ShieldCheck className="w-4 h-4 text-brand-blue shrink-0" aria-hidden="true" />
-          <span>Pilih COD di kampus atau pengiriman ke kost pada langkah checkout.</span>
-        </div>
+        {hasBlockedItems ? (
+          <div
+            role="alert"
+            className="p-3 rounded-lg bg-danger-bg border border-red-200 text-danger-text text-xs leading-relaxed flex items-start gap-2 font-medium"
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+            <span>
+              Hapus barang dari toko yang ditangguhkan atau sesuaikan jumlah barang yang stoknya habis/berubah sebelum checkout.
+            </span>
+          </div>
+        ) : (
+          <div className="p-3 rounded-lg bg-info-bg border border-brand-blue-border text-navy-900 text-xs leading-relaxed flex items-center gap-2 font-medium">
+            <ShieldCheck className="w-4 h-4 text-brand-blue shrink-0" aria-hidden="true" />
+            <span>Pilih COD di kampus atau pengiriman ke kost pada langkah checkout.</span>
+          </div>
+        )}
 
-        <Button href="/buyer/checkout" variant="primary" size="lg" className="w-full rounded-xl">
-          Lanjut ke Checkout
-        </Button>
+        {hasBlockedItems ? (
+          <Button type="button" variant="primary" size="lg" disabled className="w-full rounded-xl">
+            Lanjut ke Checkout
+          </Button>
+        ) : (
+          <Button href="/buyer/checkout" variant="primary" size="lg" className="w-full rounded-xl">
+            Lanjut ke Checkout
+          </Button>
+        )}
       </aside>
     </div>
   );

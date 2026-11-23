@@ -17,11 +17,13 @@ export async function PATCH(request, { params }) {
     const body = await request.json();
     const quantity = Number(body.quantity);
 
-    // Cek kepemilikan cart item dan ketersediaan stok
+    // Cek kepemilikan cart item, status aktif toko, dan ketersediaan stok
     const checkRes = await query(
-      `SELECT ci.id, ci.product_id, p.stock
+      `SELECT ci.id, ci.product_id, p.stock, s.name AS store_name, u.seller_status
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
+       JOIN stores s ON s.id = p.store_id
+       JOIN users u ON u.id = s.user_id
        WHERE ci.id = $1 AND ci.user_id = $2`,
       [cartItemId, user.id]
     );
@@ -53,6 +55,14 @@ export async function PATCH(request, { params }) {
     }
 
     const item = checkRes.rows[0];
+    if (item.seller_status !== 'approved') {
+      return NextResponse.json(
+        {
+          error: `Toko "${item.store_name}" sedang ditangguhkan atau tidak aktif. Hapus barang ini dari keranjang Anda.`,
+        },
+        { status: 400 }
+      );
+    }
     if (quantity > item.stock) {
       return NextResponse.json(
         { error: `Jumlah melebihi sisa stok (${item.stock} item)` },

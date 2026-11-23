@@ -7,6 +7,12 @@ import {
   createProductNameSchema,
   createProductImageUrlSchema,
 } from '@/lib/product-validation';
+import {
+  GuardError,
+  findActiveOrdersByProduct,
+  countCompletedOrdersByProduct,
+  formatActiveOrderSummary,
+} from '@/lib/order-guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -314,74 +320,56 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'ID produk tidak valid' }, { status: 400 });
     }
 
-    const storeRes = await query('SELECT id FROM stores WHERE user_id = $1', [user.id]);
-    const store = storeRes.rows[0];
-    if (!store) return NextResponse.json({ error: 'Toko tidak ditemukan' }, { status: 404 });
+    const deletedProduct = await withTransaction(async (client) => {
+      const storeRes = await client.query('SELECT id FROM stores WHERE user_id = $1', [user.id]);
+      const store = storeRes.rows[0];
+      if (!store) throw new GuardError('Toko tidak ditemukan', 404);
 
-    // Ambil info produk dan verifikasi kepemilikan
-    const prodRes = await query(
-      `SELECT id, name FROM products WHERE id = $1 AND store_id = $2`,
-      [productId, store.id]
-    );
-
-    if (prodRes.rows.length === 0) {
-      return NextResponse.json({ error: 'Produk tidak ditemukan atau bukan milik Anda' }, { status: 404 });
-    }
-
-    const product = prodRes.rows[0];
-
-    // Cek apakah barang sedang dalam pesanan aktif (sudah di-checkout oleh pembeli)
-    const activeOrderRes = await query(
-      `SELECT o.id, o.order_code, o.status, o.buyer_name, o.delivery_method
-       FROM order_items oi
-       JOIN orders o ON o.id = oi.order_id
-       WHERE oi.product_id = $1 AND o.status IN ('pending_payment', 'processing', 'shipped')
-       ORDER BY o.created_at DESC
-       LIMIT 1`,
-      [productId]
-    );
-
-    if (activeOrderRes.rows.length > 0) {
-      const activeOrder = activeOrderRes.rows[0];
-      const statusLabel = {
-        pending_payment: 'Menunggu Konfirmasi Pembayaran',
-        processing: 'Sedang Diproses',
-        shipped: activeOrder.delivery_method === 'meetup' ? 'Siap Ketemuan di Kampus' : 'Sedang Dikirim',
-      }[activeOrder.status] || activeOrder.status;
-
-      return NextResponse.json(
-        {
-          error: `Barang "${product.name}" tidak dapat dihapus karena sudah di-checkout oleh pembeli (${activeOrder.buyer_name}) dalam pesanan aktif #${activeOrder.order_code} (status: ${statusLabel}). Demi keamanan transaksi, barang yang sedang dipesan otomatis tidak dapat dihapus. Silakan selesaikan atau batalkan pesanan tersebut terlebih dahulu.`,
-        },
-        { status: 400 }
+      const prodRes = await client.query(
+        `SELECT id, name FROM products WHERE id = $1 AND store_id = $2 FOR UPDATE`,
+        [productId, store.id]
       );
-    }
 
-    // Cek apakah barang memiliki riwayat transaksi selesai
-    const completedOrderRes = await query(
-      `SELECT COUNT(*)::int AS count
-       FROM order_items oi
-       JOIN orders o ON o.id = oi.order_id
-       WHERE oi.product_id = $1 AND o.status = 'completed'`,
-      [productId]
-    );
+      if (prodRes.rows.length === 0) {
+        throw new GuardError('Produk tidak ditemukan atau bukan milik Anda', 404);
+      }
 
-    if (completedOrderRes.rows[0]?.count > 0) {
-      return NextResponse.json(
-        {
-          error: `Barang "${product.name}" tidak dapat dihapus karena memiliki riwayat transaksi pesanan yang telah selesai. Demi menjaga arsip riwayat pesanan dan ulasan pembeli, barang yang telah terjual tidak dapat dihapus.`,
-        },
-        { status: 400 }
+      const product = prodRes.rows[0];
+
+      // Cek apakah barang sedang dalam pesanan aktif (sudah di-checkout oleh pembeli)
+      const activeOrders = await findActiveOrdersByProduct(client, productId);
+      if (activeOrders.length > 0) {
+        throw new GuardError(
+          `Barang tidak dapat dihapus karena masih ada di ${formatActiveOrderSummary(activeOrders)}.`,
+          400
+        );
+      }
+
+      // Cek apakah barang memiliki riwayat transaksi selesai
+      const completedCount = await countCompletedOrdersByProduct(client, productId);
+      if (completedCount > 0) {
+        throw new GuardError(
+          `Barang memiliki ${completedCount} riwayat pesanan selesai dan tidak dapat dihapus demi menjaga ulasan pembeli.`,
+          400
+        );
+      }
+
+      await client.query(
+        `DELETE FROM products WHERE id = $1 AND store_id = $2`,
+        [productId, store.id]
       );
-    }
 
-    await query(
-      `DELETE FROM products WHERE id = $1 AND store_id = $2`,
-      [productId, store.id]
-    );
+      return product;
+    });
 
-    return NextResponse.json({ success: true, message: `Barang "${product.name}" berhasil dihapus dari lapak` });
+    return NextResponse.json({
+      success: true,
+      message: `Barang "${deletedProduct.name}" berhasil dihapus dari lapak`,
+    });
   } catch (err) {
+    if (err?.statusCode) {
+      return NextResponse.json({ error: err.message }, { status: err.statusCode });
+    }
     console.error('Delete product error:', err);
     return NextResponse.json({ error: 'Gagal menghapus produk' }, { status: 500 });
   }

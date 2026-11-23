@@ -22,11 +22,12 @@ export async function POST(request) {
       return NextResponse.json({ error: 'ID produk tidak valid' }, { status: 400 });
     }
 
-    // Cek stok produk
+    // Cek stok produk dan status aktif toko
     const productRes = await query(
-      `SELECT p.id, p.name, p.stock, s.user_id AS seller_user_id
+      `SELECT p.id, p.name, p.stock, s.user_id AS seller_user_id, s.name AS store_name, u.seller_status
        FROM products p
        JOIN stores s ON s.id = p.store_id
+       JOIN users u ON u.id = s.user_id
        WHERE p.id = $1`,
       [productId]
     );
@@ -36,6 +37,15 @@ export async function POST(request) {
     }
 
     const product = productRes.rows[0];
+
+    if (product.seller_status !== 'approved') {
+      return NextResponse.json(
+        {
+          error: `Toko "${product.store_name}" sedang ditangguhkan atau tidak aktif sehingga produk tidak dapat ditambahkan ke keranjang.`,
+        },
+        { status: 400 }
+      );
+    }
 
     // Cek apakah pembeli mencoba membeli barang tokonya sendiri (jika ada)
     if (product.seller_user_id === user.id) {
@@ -120,12 +130,14 @@ export async function GET() {
       `SELECT ci.id, ci.quantity,
               p.id AS product_id, p.name AS product_name, p.price, p.stock, p.condition,
               s.id AS store_id, s.name AS store_name, s.location AS store_location,
+              u.seller_status, (u.seller_status = 'approved') AS store_active,
               cp.id AS campus_id, cp.short_name AS campus_short_name, cp.city AS campus_city,
               (SELECT pi.url FROM product_images pi
                 WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_url
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
        JOIN stores s ON s.id = p.store_id
+       JOIN users u ON u.id = s.user_id
        JOIN campuses cp ON cp.id = s.campus_id
        WHERE ci.user_id = $1
        ORDER BY s.id, ci.created_at DESC`,

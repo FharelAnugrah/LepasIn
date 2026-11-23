@@ -20,10 +20,12 @@ export default async function BuyerCheckoutPage() {
             p.name, p.price, p.stock, p.condition,
             (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_url,
             s.id AS store_id, s.name AS store_name, s.location AS store_location,
+            u.seller_status, (u.seller_status = 'approved') AS store_active,
             cp.short_name AS campus_short_name, cp.city AS campus_city
      FROM cart_items ci
      JOIN products p ON p.id = ci.product_id
      JOIN stores s ON s.id = p.store_id
+     JOIN users u ON u.id = s.user_id
      JOIN campuses cp ON cp.id = s.campus_id
      WHERE ci.user_id = $1
      ORDER BY s.id, ci.created_at ASC`,
