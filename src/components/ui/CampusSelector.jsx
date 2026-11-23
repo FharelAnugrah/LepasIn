@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { MapPin, GraduationCap, ChevronDown, Search, X, Check } from 'lucide-react';
 
 export default function CampusSelector({
@@ -16,7 +16,12 @@ export default function CampusSelector({
   label = null,
   error = null,
   fullWidth = false,
+  variant = 'pill',
+  id,
 }) {
+  const generatedId = useId();
+  const triggerId = id || `campus-selector-${generatedId}`;
+  const errorId = error ? `${triggerId}-error` : undefined;
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [fetchedCampuses, setFetchedCampuses] = useState([]);
@@ -126,34 +131,60 @@ export default function CampusSelector({
     triggerRef.current?.focus();
   };
 
+  const isFieldVariant = variant === 'field';
+
   return (
     <div className={`relative min-w-0 ${className}`} ref={containerRef}>
       {label && (
-        <span className="block text-sm font-medium text-ink-secondary mb-1.5">
+        <label
+          htmlFor={triggerId}
+          className="block text-sm font-medium text-ink-secondary mb-1.5"
+        >
           {label}
-        </span>
+        </label>
       )}
 
-      {/* Campus Selector Pill 3D */}
+      {/* Campus Selector Trigger (Pill 3D untuk Navbar atau Field seragam untuk Form) */}
       <button
         ref={triggerRef}
+        id={triggerId}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`btn-3d inline-flex items-center justify-between gap-2 min-h-[44px] md:min-h-[38px] px-3.5 py-1.5 rounded-full select-none text-left ${
-          fullWidth ? 'w-full' : 'w-full md:w-auto'
-        } max-w-full min-w-0 ${
-          selectedCampus
-            ? 'nav-pill-3d-active font-semibold hover:-translate-y-0.5 active:translate-y-0.5'
-            : 'chip-3d font-medium'
-        } ${error ? 'border-danger-text ring-2 ring-danger-bg' : ''}`}
+        aria-describedby={errorId}
+        className={
+          isFieldVariant
+            ? `input-3d w-full h-11 pl-3.5 pr-3 rounded-lg bg-surface text-base md:text-sm text-left inline-flex items-center justify-between gap-2 border ${
+                error
+                  ? 'border-danger-text focus:border-danger-text focus:ring-3 focus:ring-danger-bg'
+                  : 'border-border-subtle focus:border-brand-blue focus:ring-3 focus:ring-brand-blue-soft'
+              } outline-none transition-colors`
+            : `btn-3d inline-flex items-center justify-between gap-2 min-h-[44px] md:min-h-[38px] px-3.5 py-1.5 rounded-full select-none text-left ${
+                fullWidth ? 'w-full' : 'w-full md:w-auto'
+              } max-w-full min-w-0 ${
+                selectedCampus
+                  ? 'nav-pill-3d-active font-semibold hover:-translate-y-0.5 active:translate-y-0.5'
+                  : 'chip-3d font-medium'
+              } ${error ? 'border-danger-text ring-2 ring-danger-bg' : ''}`
+        }
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <span className="flex items-center gap-2 min-w-0 truncate">
-          <MapPin className="w-4 h-4 shrink-0 text-brand-blue" aria-hidden="true" />
-          <span className="text-xs md:text-sm truncate">
+        <span className="flex items-center gap-2.5 min-w-0 truncate">
+          <MapPin
+            className={`w-4 h-4 shrink-0 ${isFieldVariant ? 'text-ink-muted' : 'text-brand-blue'}`}
+            aria-hidden="true"
+          />
+          <span
+            className={`${
+              isFieldVariant
+                ? `truncate ${selectedCampus ? 'text-ink font-normal' : 'text-ink-muted'}`
+                : 'text-xs md:text-sm truncate'
+            }`}
+          >
             {selectedCampus
-              ? `${selectedCampus.short_name} ${selectedCampus.city}`
+              ? isFieldVariant && selectedCampus.name
+                ? `${selectedCampus.name} (${selectedCampus.short_name})`
+                : `${selectedCampus.short_name} ${selectedCampus.city}`
               : allowAll
               ? allLabel
               : placeholder}
@@ -187,7 +218,7 @@ export default function CampusSelector({
       </button>
 
       {error && (
-        <p role="alert" className="text-xs text-danger-text font-medium mt-1">
+        <p id={errorId} role="alert" className="text-xs text-danger-text font-medium mt-1">
           {error}
         </p>
       )}
@@ -202,7 +233,9 @@ export default function CampusSelector({
           <div
             role="listbox"
             aria-label="Pilih kampus di Indonesia"
-            className="fixed inset-x-3 sm:inset-x-4 top-16 sm:top-20 md:absolute md:top-full md:left-0 md:inset-x-auto md:mt-2 w-auto md:w-80 max-h-[min(72dvh,24rem)] dropdown-3d rounded-2xl z-[60] flex flex-col overflow-hidden"
+            className={`fixed inset-x-3 sm:inset-x-4 top-16 sm:top-20 md:absolute md:top-full md:left-0 md:inset-x-auto md:mt-2 w-auto ${
+              isFieldVariant ? 'md:w-full' : 'md:w-80'
+            } max-h-[min(72dvh,24rem)] dropdown-3d rounded-2xl z-[60] flex flex-col overflow-hidden`}
           >
             <div className="p-3 border-b border-border-subtle bg-canvas">
               <div className="relative flex items-center">

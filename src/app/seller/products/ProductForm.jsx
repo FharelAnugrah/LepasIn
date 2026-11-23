@@ -10,6 +10,7 @@ import ImageUploader from '@/components/ui/ImageUploader';
 import { useToast } from '@/components/ui/Toast';
 import {
   PRODUCT_NAME_MIN_LENGTH,
+  PRODUCT_NAME_MAX_LENGTH,
   normalizeProductName,
   validateProductName,
   validateProductImageUrl,
@@ -359,6 +360,7 @@ export default function ProductForm({
                   onChange={handleNameChange}
                   onBlur={handleNameBlur}
                   error={errors.name?.[0]}
+                  helperText={`${name.trim().length}/${PRODUCT_NAME_MAX_LENGTH} karakter`}
                   minLength={PRODUCT_NAME_MIN_LENGTH}
                   required
                 />
@@ -453,7 +455,7 @@ export default function ProductForm({
           </div>
 
           {/* Kolom Kanan (1/3 sticky): Harga & Stok + Kartu Aksi */}
-          <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6">
+          <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-20">
             {/* Kartu 3: Harga & Stok */}
             <section
               aria-labelledby="card-product-pricing"
