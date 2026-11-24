@@ -177,12 +177,16 @@ export default async function BuyerOrdersPage({ searchParams }) {
                                   Sudah Diulas
                                 </span>
                               </div>
-                            ) : (
+                            ) : item.product_id ? (
                               <ReviewForm
                                 orderItemId={item.id}
                                 productId={item.product_id}
                                 productName={item.name}
                               />
+                            ) : (
+                              <p className="text-xs text-ink-muted italic">
+                                Produk ini sudah tidak tersedia di katalog untuk diulas.
+                              </p>
                             )}
                           </div>
                         )}
@@ -236,7 +240,9 @@ export default async function BuyerOrdersPage({ searchParams }) {
                   <div className="bg-canvas border-t border-border-subtle px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
                     <p className="text-xs text-ink-muted">
                       {o.status === 'pending_payment' &&
-                        'Metode COD aktif. Koordinasikan waktu dan titik temu di kampus bersama penjual.'}
+                        (o.delivery_method === 'meetup'
+                          ? 'Metode COD aktif. Menunggu konfirmasi penjual dan koordinasi titik temu di kampus.'
+                          : 'Menunggu konfirmasi pembayaran untuk memproses pesanan.')}
                       {o.status === 'processing' &&
                         'Pesanan sedang disiapkan oleh penjual.'}
                       {o.status === 'completed' &&

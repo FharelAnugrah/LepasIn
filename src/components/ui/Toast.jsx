@@ -1,33 +1,118 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 const ToastContext = createContext(null);
+const MAX_TOASTS = 3;
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
+  const timersRef = useRef(new Map());
+  const activeKeysRef = useRef(new Map());
+  const orderRef = useRef([]);
 
-  const addToast = useCallback((message, type = 'info', duration = 3500) => {
-    const id = Date.now() + Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-
-    if (duration > 0) {
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, duration);
+  const clearToastTimer = useCallback((id) => {
+    const existingTimer = timersRef.current.get(id);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      timersRef.current.delete(id);
     }
   }, []);
 
-  const removeToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const unregisterToastMeta = useCallback((id) => {
+    const idx = orderRef.current.findIndex((item) => item.id === id);
+    if (idx !== -1) {
+      const [removed] = orderRef.current.splice(idx, 1);
+      if (removed && activeKeysRef.current.get(removed.key) === id) {
+        activeKeysRef.current.delete(removed.key);
+      }
+    }
   }, []);
 
-  const toast = {
-    success: (msg, duration) => addToast(msg, 'success', duration),
-    error: (msg, duration) => addToast(msg, 'error', duration),
-    info: (msg, duration) => addToast(msg, 'info', duration),
-  };
+  const removeToast = useCallback(
+    (id) => {
+      clearToastTimer(id);
+      unregisterToastMeta(id);
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    },
+    [clearToastTimer, unregisterToastMeta]
+  );
+
+  const scheduleToastRemoval = useCallback(
+    (id, duration) => {
+      clearToastTimer(id);
+      if (duration > 0) {
+        const timerId = setTimeout(() => {
+          timersRef.current.delete(id);
+          unregisterToastMeta(id);
+          setToasts((prev) => prev.filter((t) => t.id !== id));
+        }, duration);
+        timersRef.current.set(id, timerId);
+      }
+    },
+    [clearToastTimer, unregisterToastMeta]
+  );
+
+  const addToast = useCallback(
+    (message, type = 'info', duration = 3500) => {
+      const text = String(message ?? '').trim();
+      if (!text) return;
+
+      const toastKey = `${type}::${text}`;
+      const existingId = activeKeysRef.current.get(toastKey);
+
+      // Deduplikasi toast identik yang sedang tampil: cukup perpanjang durasinya tanpa menumpuk kartu baru
+      if (existingId) {
+        scheduleToastRemoval(existingId, duration);
+        return;
+      }
+
+      const id = Date.now() + Math.random().toString(36).substring(2, 9);
+
+      while (orderRef.current.length >= MAX_TOASTS) {
+        const oldest = orderRef.current.shift();
+        if (oldest) {
+          clearToastTimer(oldest.id);
+          if (activeKeysRef.current.get(oldest.key) === oldest.id) {
+            activeKeysRef.current.delete(oldest.key);
+          }
+        }
+      }
+
+      orderRef.current.push({ id, key: toastKey });
+      activeKeysRef.current.set(toastKey, id);
+      const keptIds = new Set(orderRef.current.map((item) => item.id));
+
+      setToasts((prev) => [
+        ...prev.filter((t) => keptIds.has(t.id)),
+        { id, message: text, type },
+      ]);
+      scheduleToastRemoval(id, duration);
+    },
+    [clearToastTimer, scheduleToastRemoval]
+  );
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    const activeKeys = activeKeysRef.current;
+    const order = orderRef.current;
+    return () => {
+      timers.forEach((timerId) => clearTimeout(timerId));
+      timers.clear();
+      activeKeys.clear();
+      order.length = 0;
+    };
+  }, []);
+
+  const toast = useMemo(
+    () => ({
+      success: (msg, duration) => addToast(msg, 'success', duration),
+      error: (msg, duration) => addToast(msg, 'error', duration),
+      info: (msg, duration) => addToast(msg, 'info', duration),
+    }),
+    [addToast]
+  );
 
   useEffect(() => {
     const handleWheel = () => {
@@ -156,7 +241,7 @@ export function ToastProvider({ children }) {
               {t.type === 'info' && (
                 <Info className="w-4 h-4 text-brand-blue-border shrink-0" aria-hidden="true" />
               )}
-              <span className="leading-snug">{t.message}</span>
+              <span className="leading-snug break-words">{t.message}</span>
             </div>
             <button
               type="button"

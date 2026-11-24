@@ -73,7 +73,7 @@ export function PricePill({ amount, className = '', size = 'md' }) {
 /**
  * Badge Kondisi Barang Preloved (design2.md 3 & 5.3)
  */
-export function ConditionBadge({ condition, className = '' }) {
+export function ConditionBadge({ condition, showPrefix = false, className = '' }) {
   const conditionMap = {
     like_new: { text: 'Seperti Baru', variant: 'mint' },
     good: { text: 'Baik', variant: 'primary' },
@@ -89,7 +89,7 @@ export function ConditionBadge({ condition, className = '' }) {
       size="xs"
       className={`rounded-full px-2.5 py-0.5 ${className}`}
     >
-      {current.text}
+      {showPrefix ? `Kondisi: ${current.text}` : current.text}
     </Badge>
   );
 }
@@ -111,7 +111,10 @@ export function CampusBadge({ shortName, cityName, className = '' }) {
  */
 export function OrderStatusBadge({ status, deliveryMethod = 'delivery', className = '' }) {
   const statusMap = {
-    pending_payment: { text: 'Menunggu Pembayaran', variant: 'warning' },
+    pending_payment: {
+      text: deliveryMethod === 'meetup' ? 'Menunggu Konfirmasi COD' : 'Menunggu Pembayaran',
+      variant: 'warning',
+    },
     processing: { text: 'Diproses Penjual', variant: 'primary' },
     shipped: {
       text: deliveryMethod === 'meetup' ? 'Siap Ketemuan di Kampus' : 'Sedang Dikirim',

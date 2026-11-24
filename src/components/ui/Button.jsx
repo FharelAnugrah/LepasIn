@@ -49,22 +49,14 @@ export default function Button({
   };
 
   const combinedClasses = `${baseStyles} ${variants[variant] || variants.primary} ${sizes[size] || sizes.md} ${radius} ${className}`;
+  const isDisabled = disabled || loading;
 
-  if (href) {
+  if (href && !isDisabled) {
     return (
       <Link href={href} className={combinedClasses} {...props}>
-        {loading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" />
-            <span>Memproses...</span>
-          </>
-        ) : (
-          <>
-            {renderIcon(icon)}
-            {children}
-            {renderIcon(iconRight)}
-          </>
-        )}
+        {renderIcon(icon)}
+        {children}
+        {renderIcon(iconRight)}
       </Link>
     );
   }
@@ -72,7 +64,7 @@ export default function Button({
   return (
     <button
       type={type}
-      disabled={disabled || loading}
+      disabled={isDisabled}
       className={combinedClasses}
       {...props}
     >
