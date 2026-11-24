@@ -90,7 +90,7 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
 
       if (!res.ok) {
         toast.error(data.error || 'Gagal mengubah status verifikasi');
-        setConfirmDialog((prev) => ({ ...prev, loading: false }));
+        setConfirmDialog({ isOpen: false, seller: null, action: null, loading: false });
         return;
       }
 
@@ -124,7 +124,7 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
     } catch (err) {
       console.error(err);
       toast.error('Terjadi kesalahan koneksi');
-      setConfirmDialog((prev) => ({ ...prev, loading: false }));
+      setConfirmDialog({ isOpen: false, seller: null, action: null, loading: false });
     }
   };
 
@@ -185,7 +185,7 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
       </div>
 
       {filteredSellers.length === 0 ? (
-        <div className="p-12 text-center bg-surface border border-border-subtle rounded-xl">
+        <div className="p-12 text-center surface-3d rounded-2xl">
           <Store className="w-10 h-10 text-ink-muted mx-auto mb-3" aria-hidden="true" />
           <h2 className="text-sm font-bold text-ink">Tidak ada penjual yang sesuai</h2>
           <p className="text-xs text-ink-muted mt-1">
@@ -197,7 +197,7 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
           {filteredSellers.map((seller) => (
             <article
               key={seller.id}
-              className="bg-surface border border-border-subtle rounded-xl p-5 flex flex-col justify-between gap-4"
+              className="surface-3d rounded-2xl p-5 flex flex-col justify-between gap-4"
             >
               <div>
                 <div className="flex items-start justify-between gap-2 mb-3">

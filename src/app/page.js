@@ -199,7 +199,7 @@ export default async function HomePage({ searchParams }) {
   const secondaryCta = isSeller
     ? { href: '/seller/products/new', label: '+ Jual Barang Preloved' }
     : isAdmin
-    ? { href: '/admin', label: '🛡️ Kelola Platform' }
+    ? { href: '/admin/sellers', label: '📋 Verifikasi Penjual' }
     : { href: '/register?role=seller', label: 'Buka Lapak Mahasiswa' };
 
   return (

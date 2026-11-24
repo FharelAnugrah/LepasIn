@@ -47,7 +47,7 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
 
   const handleOpenDelete = (u) => {
     if (u.id === currentAdminId) {
-      toast.error('Anda tidak dapat menghapus akun Anda sendiri.');
+      toast.warning('Anda tidak dapat menghapus akun Anda sendiri.');
       return;
     }
     setDeleteDialog({
@@ -71,7 +71,7 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
 
       if (!res.ok) {
         toast.error(data.error || 'Gagal menghapus pengguna');
-        setDeleteDialog((prev) => ({ ...prev, loading: false }));
+        setDeleteDialog({ isOpen: false, user: null, loading: false });
         return;
       }
 
@@ -82,7 +82,7 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
     } catch (err) {
       console.error(err);
       toast.error('Gagal menghapus pengguna');
-      setDeleteDialog((prev) => ({ ...prev, loading: false }));
+      setDeleteDialog({ isOpen: false, user: null, loading: false });
     }
   };
 
@@ -169,7 +169,7 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
         </div>
       </div>
 
-      <div className="bg-surface border border-border-subtle rounded-xl overflow-hidden">
+      <div className="surface-3d rounded-2xl overflow-hidden">
         <div className="md:hidden divide-y divide-border-subtle">
           {filteredUsers.length === 0 ? (
             <div className="py-10 px-4 text-center text-sm text-ink-muted">
@@ -215,10 +215,12 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
 
                   <div className="flex items-center justify-end gap-2 pt-1">
                     <Button
-                      href={`/admin/users/${u.id}/edit`}
+                      href={isCurrentAdmin ? undefined : `/admin/users/${u.id}/edit`}
                       variant="secondary"
                       size="sm"
                       icon={Edit2}
+                      disabled={isCurrentAdmin}
+                      title={isCurrentAdmin ? 'Tidak dapat mengedit akun sendiri' : 'Edit pengguna'}
                     >
                       Edit
                     </Button>
@@ -312,10 +314,12 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
                       <td className="py-3.5 px-3 xl:px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           <Button
-                            href={`/admin/users/${u.id}/edit`}
+                            href={isCurrentAdmin ? undefined : `/admin/users/${u.id}/edit`}
                             variant="secondary"
                             size="sm"
                             icon={Edit2}
+                            disabled={isCurrentAdmin}
+                            title={isCurrentAdmin ? 'Tidak dapat mengedit akun sendiri' : 'Edit pengguna'}
                           >
                             Edit
                           </Button>

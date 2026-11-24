@@ -175,7 +175,7 @@ export default function CampusesManager({ initialCampuses }) {
 
   const handleOpenDelete = (campus) => {
     if (campus.user_count > 0 || campus.store_count > 0) {
-      toast.error(
+      toast.warning(
         `Kampus ${campus.short_name} masih terhubung dengan ${campus.user_count} pengguna dan ${campus.store_count} toko.`
       );
       return;
@@ -250,7 +250,7 @@ export default function CampusesManager({ initialCampuses }) {
         />
       </div>
 
-      <div className="bg-surface border border-border-subtle rounded-xl overflow-hidden">
+      <div className="surface-3d rounded-2xl overflow-hidden">
         <div className="md:hidden divide-y divide-border-subtle">
           {filteredCampuses.length === 0 ? (
             <div className="py-10 px-4 text-center text-sm text-ink-muted">

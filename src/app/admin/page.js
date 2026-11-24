@@ -94,7 +94,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Grid Kartu Metrik Utama 3D */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 tabular-nums">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 tabular-nums">
         <div className="perspective-stage">
           <div data-tilt-3d="kpi" className="tilt-3d card-3d rounded-2xl p-5 h-full flex flex-col justify-between overflow-hidden">
             <div className="tilt-glare" aria-hidden="true" />
@@ -152,25 +152,6 @@ export default async function AdminDashboardPage() {
               <Link href="/admin/products" className="text-brand-blue font-semibold hover:underline">
                 Moderasi
               </Link>
-            </div>
-          </div>
-        </div>
-
-        <div className="perspective-stage">
-          <div data-tilt-3d="kpi" className="tilt-3d card-3d rounded-2xl p-5 h-full flex flex-col justify-between overflow-hidden">
-            <div className="tilt-glare" aria-hidden="true" />
-            <div className="depth-layer-1 flex items-center justify-between text-ink-muted mb-3">
-              <span className="text-xs font-semibold">Volume Transaksi</span>
-              <span className="w-8 h-8 rounded-lg icon-plinth-gold text-ink flex items-center justify-center">
-                <TrendingUp className="w-4 h-4" aria-hidden="true" />
-              </span>
-            </div>
-            <div className="depth-layer-2 text-xl md:text-2xl font-extrabold text-ink tracking-tight truncate">
-              {formatRupiah(orderStats.total_revenue)}
-            </div>
-            <div className="depth-layer-1 text-xs text-ink-muted mt-2.5 pt-2.5 border-t border-border-subtle flex items-center justify-between">
-              <span>{orderStats.total_orders} Pesanan</span>
-              <span className="text-success-text font-semibold">{orderStats.completed_orders} Selesai</span>
             </div>
           </div>
         </div>

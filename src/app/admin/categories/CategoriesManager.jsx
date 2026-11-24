@@ -63,7 +63,7 @@ export default function CategoriesManager({ initialCategories }) {
 
   const handleOpenEdit = (category) => {
     if (/^(lainnya|lain-lain)$/i.test(category.name?.trim())) {
-      toast.error('Nama kategori "Lainnya" adalah kategori sistem dan tidak dapat diubah.');
+      toast.warning('Nama kategori "Lainnya" adalah kategori sistem dan tidak dapat diubah.');
       return;
     }
     setModalState({
@@ -147,11 +147,11 @@ export default function CategoriesManager({ initialCategories }) {
 
   const handleOpenDelete = (category) => {
     if (/^(lainnya|lain-lain)$/i.test(category.name?.trim())) {
-      toast.error('Kategori "Lainnya" adalah kategori sistem dan tidak dapat dihapus.');
+      toast.warning('Kategori "Lainnya" adalah kategori sistem dan tidak dapat dihapus.');
       return;
     }
     if (category.product_count > 0) {
-      toast.error(
+      toast.warning(
         `Kategori "${category.name}" masih digunakan oleh ${category.product_count} produk dan tidak boleh dihapus.`
       );
       return;
@@ -231,7 +231,7 @@ export default function CategoriesManager({ initialCategories }) {
         />
       </div>
 
-      <div className="bg-surface border border-border-subtle rounded-xl overflow-hidden">
+      <div className="surface-3d rounded-2xl overflow-hidden">
         <div className="md:hidden divide-y divide-border-subtle">
           {filteredCategories.length === 0 ? (
             <div className="py-10 px-4 text-center text-sm text-ink-muted">
