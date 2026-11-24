@@ -11,6 +11,7 @@
 BEGIN;
 
 -- ---------- 0. RESET ----------
+DROP TABLE IF EXISTS chats          CASCADE;
 DROP TABLE IF EXISTS wishlists      CASCADE;
 DROP TABLE IF EXISTS reviews        CASCADE;
 DROP TABLE IF EXISTS order_items    CASCADE;
@@ -101,13 +102,15 @@ CREATE TABLE products (
   original_price INT          CHECK (original_price IS NULL OR original_price > 0),
   stock          INT          NOT NULL DEFAULT 1 CHECK (stock >= 0),
   condition      VARCHAR(15)  NOT NULL CHECK (condition IN ('like_new', 'good', 'fair', 'minor_defect')),
+  is_deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
   created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
-CREATE INDEX products_store_idx    ON products (store_id);
-CREATE INDEX products_category_idx ON products (category_id);
-CREATE INDEX products_price_idx    ON products (price);
-CREATE INDEX products_created_idx  ON products (created_at DESC);
+CREATE INDEX products_store_idx      ON products (store_id);
+CREATE INDEX products_category_idx   ON products (category_id);
+CREATE INDEX products_price_idx      ON products (price);
+CREATE INDEX products_created_idx    ON products (created_at DESC);
+CREATE INDEX products_is_deleted_idx ON products (is_deleted);
 
 -- ---------- 7. PRODUCT_IMAGES ----------
 CREATE TABLE product_images (
@@ -233,59 +236,64 @@ CREATE TRIGGER orders_updated_at   BEFORE UPDATE ON orders   FOR EACH ROW EXECUT
 -- =====================================================================
 
 INSERT INTO campuses (id, name, short_name, city, province) VALUES
-  (1,  'Universitas Hasanuddin',               'UNHAS',  'Makassar',   'Sulawesi Selatan'),
-  (2,  'Universitas Indonesia',                'UI',     'Depok',      'Jawa Barat'),
-  (3,  'Institut Teknologi Bandung',           'ITB',    'Bandung',    'Jawa Barat'),
-  (4,  'Universitas Gadjah Mada',              'UGM',    'Yogyakarta', 'DI Yogyakarta'),
-  (5,  'Institut Teknologi Sepuluh Nopember',  'ITS',    'Surabaya',   'Jawa Timur'),
-  (6,  'Universitas Airlangga',                'UNAIR',  'Surabaya',   'Jawa Timur'),
-  (7,  'Universitas Brawijaya',                'UB',     'Malang',     'Jawa Timur'),
-  (8,  'Universitas Diponegoro',               'UNDIP',  'Semarang',   'Jawa Tengah'),
-  (9,  'Universitas Padjadjaran',              'UNPAD',  'Sumedang',   'Jawa Barat'),
-  (10, 'Institut Pertanian Bogor',             'IPB',    'Bogor',      'Jawa Barat'),
-  (11, 'Universitas Sumatera Utara',           'USU',    'Medan',      'Sumatera Utara'),
-  (12, 'Universitas Negeri Makassar',          'UNM',    'Makassar',   'Sulawesi Selatan'),
-  (13, 'Telkom University',                    'TEL-U',  'Bandung',    'Jawa Barat'),
-  (14, 'Universitas Sebelas Maret',            'UNS',    'Surakarta',  'Jawa Tengah'),
-  (15, 'Universitas Udayana',                  'UNUD',   'Badung',     'Bali'),
-  (16, 'Universitas Syiah Kuala',              'USK',    'Banda Aceh', 'Aceh'),
-  (17, 'Universitas Andalas',                  'UNAND',  'Padang',     'Sumatera Barat'),
-  (18, 'Universitas Sriwijaya',                'UNSRI',  'Indralaya',  'Sumatera Selatan'),
+  (1,  'Universitas Hasanuddin',               'UNHAS',  'Makassar',       'Sulawesi Selatan'),
+  (2,  'Universitas Indonesia',                'UI',     'Depok',          'Jawa Barat'),
+  (3,  'Institut Teknologi Bandung',           'ITB',    'Bandung',        'Jawa Barat'),
+  (4,  'Universitas Gadjah Mada',              'UGM',    'Yogyakarta',     'DI Yogyakarta'),
+  (5,  'Institut Teknologi Sepuluh Nopember',  'ITS',    'Surabaya',       'Jawa Timur'),
+  (6,  'Universitas Airlangga',                'UNAIR',  'Surabaya',       'Jawa Timur'),
+  (7,  'Universitas Brawijaya',                'UB',     'Malang',         'Jawa Timur'),
+  (8,  'Universitas Diponegoro',               'UNDIP',  'Semarang',       'Jawa Tengah'),
+  (9,  'Universitas Padjadjaran',              'UNPAD',  'Sumedang',       'Jawa Barat'),
+  (10, 'Institut Pertanian Bogor',             'IPB',    'Bogor',          'Jawa Barat'),
+  (11, 'Universitas Sumatera Utara',           'USU',    'Medan',          'Sumatera Utara'),
+  (12, 'Universitas Negeri Makassar',          'UNM',    'Makassar',       'Sulawesi Selatan'),
+  (13, 'Telkom University',                    'TEL-U',  'Bandung',        'Jawa Barat'),
+  (14, 'Universitas Sebelas Maret',            'UNS',    'Surakarta',      'Jawa Tengah'),
+  (15, 'Universitas Udayana',                  'UNUD',   'Badung',         'Bali'),
+  (16, 'Universitas Syiah Kuala',              'USK',    'Banda Aceh',     'Aceh'),
+  (17, 'Universitas Andalas',                  'UNAND',  'Padang',         'Sumatera Barat'),
+  (18, 'Universitas Sriwijaya',                'UNSRI',  'Indralaya',      'Sumatera Selatan'),
   (19, 'Universitas Lampung',                  'UNILA',  'Bandar Lampung', 'Lampung'),
-  (20, 'Universitas Jenderal Soedirman',       'UNSOED', 'Purwokerto', 'Jawa Tengah'),
-  (21, 'Universitas Negeri Yogyakarta',        'UNY',    'Yogyakarta', 'DI Yogyakarta'),
-  (22, 'Universitas Negeri Malang',            'UM',     'Malang',     'Jawa Timur'),
-  (23, 'Universitas Lambung Mangkurat',        'ULM',    'Banjarmasin','Kalimantan Selatan'),
-  (24, 'Universitas Mulawarman',               'UNMUL',  'Samarinda',  'Kalimantan Timur'),
-  (25, 'Universitas Sam Ratulangi',            'UNSRAT', 'Manado',     'Sulawesi Utara'),
-  (26, 'Universitas Halu Oleo',                'UHO',    'Kendari',    'Sulawesi Tenggara'),
-  (27, 'Universitas Tadulako',                 'UNTAD',  'Palu',       'Sulawesi Tengah'),
-  (28, 'Universitas Mataram',                  'UNRAM',  'Mataram',    'Nusa Tenggara Barat'),
-  (29, 'Universitas Nusa Cendana',             'UNDANA', 'Kupang',     'Nusa Tenggara Timur'),
-  (30, 'Universitas Cenderawasih',             'UNCEN',  'Jayapura',   'Papua');
+  (20, 'Universitas Jenderal Soedirman',       'UNSOED', 'Purwokerto',     'Jawa Tengah'),
+  (21, 'Universitas Negeri Yogyakarta',        'UNY',    'Yogyakarta',     'DI Yogyakarta'),
+  (22, 'Universitas Negeri Malang',            'UM',     'Malang',         'Jawa Timur'),
+  (23, 'Universitas Lambung Mangkurat',        'ULM',    'Banjarmasin',    'Kalimantan Selatan'),
+  (24, 'Universitas Mulawarman',               'UNMUL',  'Samarinda',      'Kalimantan Timur'),
+  (25, 'Universitas Sam Ratulangi',            'UNSRAT', 'Manado',         'Sulawesi Utara'),
+  (26, 'Universitas Halu Oleo',                'UHO',    'Kendari',        'Sulawesi Tenggara'),
+  (27, 'Universitas Tadulako',                 'UNTAD',  'Palu',           'Sulawesi Tengah'),
+  (28, 'Universitas Mataram',                  'UNRAM',  'Mataram',        'Nusa Tenggara Barat'),
+  (29, 'Universitas Nusa Cendana',             'UNDANA', 'Kupang',         'Nusa Tenggara Timur'),
+  (30, 'Universitas Cenderawasih',             'UNCEN',  'Jayapura',       'Papua');
 
 INSERT INTO users (id, campus_id, name, email, password_hash, role, seller_status, was_approved, id_card_url, phone) VALUES
-  (1, NULL, 'Admin LepasIn',   'admin@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'admin',  NULL,       FALSE, NULL,                                                                           '081200000001'),
-  (2, 1,    'Dinda Putri',     'dinda@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80', '081200000002'),
-  (3, 2,    'Rizky Pratama',   'rizky@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80', '081200000003'),
-  (4, 3,    'Alya Rahma',      'alya@lepasin.id',   '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80', '081200000004'),
-  (5, 4,    'Dimas Nugroho',   'dimas@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80', '081200000005'),
-  (6, 7,    'Fajar Maulana',   'fajar@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=600&q=80', '081200000006'),
-  (7, 8,    'Tari Kusuma',     'tari@lepasin.id',   '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80', '081200000007'),
-  (8, 1,    'Salsa Amelia',    'salsa@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'pending',  FALSE, 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80', '081200000008'),
-  (9, 5,    'Bayu Saputra',    'bayu@lepasin.id',   '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'rejected', FALSE, 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=600&q=80', '081200000009'),
-  (10, 1,   'Andi Firmansyah', 'andi@lepasin.id',   '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'buyer',  NULL,       FALSE, NULL,                                                                           '081200000010'),
-  (11, 2,   'Nabila Zahra',    'nabila@lepasin.id', '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'buyer',  NULL,       FALSE, NULL,                                                                           '081200000011');
+  (1,  NULL, 'Admin LepasIn',        'admin@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'admin',  NULL,       FALSE, NULL,                                      '081200000001'),
+  (2,  1,    'Dinda Putri Rahayu',   'dinda@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  '/uploads/verifications/demo-ktm-female.jpg', '081241200101'),
+  (3,  2,    'Rizky Pratama Putra',  'rizky@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  '/uploads/verifications/demo-ktm-male.jpg',   '081382100202'),
+  (4,  3,    'Alya Rahmawati',       'alya@lepasin.id',   '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  '/uploads/verifications/demo-ktm-female.jpg', '081221400303'),
+  (5,  4,    'Dimas Adi Nugroho',    'dimas@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  '/uploads/verifications/demo-ktm-male.jpg',   '081328500404'),
+  (6,  7,    'Fajar Maulana Hakim',  'fajar@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  '/uploads/verifications/demo-ktm-male.jpg',   '081234600505'),
+  (7,  8,    'Tari Kusuma Dewi',     'tari@lepasin.id',   '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  '/uploads/verifications/demo-ktm-female.jpg', '081325700606'),
+  (8,  9,    'Hendra Wijaya',        'hendra@lepasin.id', '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  '/uploads/verifications/demo-ktm-male.jpg',   '081222800707'),
+  (9,  5,    'Putri Maharani',       'putri@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'approved', TRUE,  '/uploads/verifications/demo-ktm-female.jpg', '081331900808'),
+  (10, 1,    'Salsa Amelia Putri',   'salsa@lepasin.id',  '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'pending',  FALSE, '/uploads/verifications/demo-ktm-female.jpg', '085242000909'),
+  (11, 5,    'Bayu Saputra',         'bayu@lepasin.id',   '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'seller', 'rejected', FALSE, '/uploads/verifications/demo-ktm-male.jpg',   '085732101010'),
+  (12, 1,    'Andi Firmansyah',      'andi@lepasin.id',   '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'buyer',  NULL,       FALSE, NULL,                                      '081241881111'),
+  (13, 2,    'Nabila Zahra',         'nabila@lepasin.id', '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'buyer',  NULL,       FALSE, NULL,                                      '081384992222'),
+  (14, 4,    'Rafi Alfarizi',        'rafi@lepasin.id',   '$2b$10$n9n84E1gydyt1y2RmzdoQOnDCEizt/2Ws3JiO7l.BPRgJdE2ApW0G', 'buyer',  NULL,       FALSE, NULL,                                      '081227773333');
 
-INSERT INTO stores (id, user_id, campus_id, name, description, location) VALUES
-  (1, 2, 1, 'Lapak Dinda UNHAS',    'Barang kost kondisi mulus dari anak semester akhir. Siap COD di Pintu 1 atau Tamalanrea.', 'Tamalanrea, Pintu 1 UNHAS'),
-  (2, 3, 2, 'Rizky Preloved UI',    'Elektronik dan alat kuliah bekas pribadi, semua sudah dicek dan masih berfungsi.',             'Kukusan Teknik, Depok'),
-  (3, 4, 3, 'Alya Kos ITB',         'Perabot kamar kost dan perlengkapan gambar teknik preloved terawat.',                        'Cisitu Lama, Bandung'),
-  (4, 5, 4, 'Dimas Preloved UGM',   'Buku kuliah, meja lipat, dan peralatan kost siap COD sekitar Pogung.',                     'Pogung Baru, Sleman'),
-  (5, 6, 7, 'Fajar Thrift UB',      'Perlengkapan kost & olahraga Mahasiswa Brawijaya. Siap COD Gerbang Watugong.',              'Sumbersari, Malang'),
-  (6, 7, 8, 'Tari Preloved UNDIP',  'Perabot dapur & elektronik kamar kost Tembalang siap pakai.',                              'Tembalang, Semarang'),
-  (7, 8, 1, 'Salsa Thrift',         'Pakaian dan aksesori preloved mahasiswi.',                                                    'BTP Tamalanrea, Makassar'),
-  (8, 9, 5, 'Bayu Garage ITS',      'Perabot dan barang bekas anak kost.',                                                         'Keputih, Surabaya');
+INSERT INTO stores (id, user_id, campus_id, name, description, image_url, location) VALUES
+  (1,  2,  1, 'Lapak Dinda UNHAS',    'Lepas barang kamar kost habis yudisium. Semua terawat, bersih, dan siap cek fisik COD di Pintu 1 atau Pintu 2 UNHAS Tamalanrea.', NULL,                                  'Tamalanrea, Pintu 1 UNHAS'),
+  (2,  3,  2, 'Rizky Preloved UI',    'Laptop, gadget, kipas, dan buku kuliah Ilmu Komputer bekas pribadi. Siap COD sekitar Kukusan Teknik, Stasiun UI, atau Pondok Cina.', '/uploads/stores/demo-store-tech.jpg', 'Kukusan Teknik, Beji, Depok'),
+  (3,  4,  3, 'Alya Kos ITB',         'Perabot minimalis dan alat olahraga kamar kost sebelum pindah kerja ke Jakarta. Siap COD area Cisitu Lama atau Gelap Nyawang.',    NULL,                                  'Cisitu Lama, Coblong, Bandung'),
+  (4,  5,  4, 'Dimas Preloved UGM',   'Monitor kerja skripsian, lampu belajar, dan perlengkapan anak kost Sleman. COD area Pogung Baru atau Selokan Mataram.',             NULL,                                  'Pogung Baru, Mlati, Sleman'),
+  (5,  6,  7, 'Fajar Thrift UB',      'Perlengkapan olahraga, hoodie ori, dan barang harian mahasiswa Brawijaya. Bisa COD depan Gerbang Watugong atau area Matos.',         NULL,                                  'Sumbersari, Lowokwaru, Malang'),
+  (6,  7,  8, 'Tari Preloved UNDIP',  'Perlengkapan dapur dan elektronik kamar kost Tembalang kondisi mulus. Siap COD sekitar Jl. Banjarsari atau Patung Kuda UNDIP.',       NULL,                                  'Banjarsari, Tembalang, Semarang'),
+  (7,  8,  9, 'Hendra Garage UNPAD',  'Helm harian dan perabot kamar kost pindahan dari Jatinangor. Siap COD di gerbang lama UNPAD atau parkiran Jatos.',                     NULL,                                  'Cikeruh, Jatinangor, Sumedang'),
+  (8,  9,  5, 'Putri Kos ITS',        'Setrika uap, buku kalkulus & fisika dasar bekas semester awal. Barang terawat, siap COD Keputih Tegal atau Bundaran ITS.',          NULL,                                  'Keputih Tegal, Sukolilo, Surabaya'),
+  (9,  10, 1, 'Salsa Thrift UNHAS',   'Koleksi pakaian, tas kuliah, dan perlengkapan kamar mahasiswi sekitar BTP Tamalanrea.',                                              NULL,                                  'BTP Blok M, Tamalanrea, Makassar'),
+  (10, 11, 5, 'Bayu Garage ITS',      'Perabot dan perlengkapan kost bekas mahasiswa Gebang Putih Surabaya.',                                                               NULL,                                  'Gebang Putih, Sukolilo, Surabaya');
 
 INSERT INTO categories (id, name) VALUES
   (1, 'Elektronik'),
@@ -297,56 +305,169 @@ INSERT INTO categories (id, name) VALUES
   (7, 'Kendaraan & Aksesori'),
   (8, 'Lainnya');
 
-INSERT INTO products (id, store_id, category_id, name, description, price, original_price, stock, condition) VALUES
-  (1,  1, 2, 'Kasur Lipat Busa 90x200',          'Kasur lipat busa tebal 10 cm, dipakai satu tahun, bersih tanpa noda. Ambil sendiri di Tamalanrea.', 250000, 550000, 1, 'good'),
-  (2,  1, 2, 'Rak Buku Susun 4 Tingkat',         'Rak buku plastik susun 4 tingkat, mudah dibongkar pasang. Ada sedikit goresan di sisi belakang.',                        75000,  150000, 1, 'fair'),
-  (3,  1, 5, 'Rice Cooker Mini 0.6L',            'Rice cooker mini 0.6 liter, masih berfungsi normal, lengkap dengan centong dan gelas ukur.',                              90000,  230000, 0, 'like_new'),
-  (4,  1, 5, 'Set Piring dan Gelas (12 pcs)',    'Set peralatan makan 12 pcs, tidak ada yang retak. Dijual satu paket.',                                                    60000,  120000, 2, 'good'),
-  (5,  2, 1, 'Laptop Asus VivoBook 14 (i3)',     'RAM 8GB, SSD 256GB, baterai tahan sekitar 3 jam. Cocok untuk tugas kuliah. Siap COD Stasiun UI/Kukusan.',            3200000, 5800000, 1, 'good'),
-  (6,  2, 1, 'Kipas Angin Meja Mini',            'Kipas angin meja 3 kecepatan, putaran halus dan tidak berisik.',                                                          55000,  120000, 1, 'like_new'),
-  (7,  2, 4, 'Kalkulator Ilmiah Casio fx-991',   'Kalkulator ilmiah untuk kuliah teknik dan sains, layar jernih, tombol normal.',                                          110000,  240000, 0, 'good'),
-  (8,  2, 4, 'Buku Algoritma dan Struktur Data',  'Buku kuliah bekas, ada coretan pensil di beberapa halaman namun masih sangat terbaca.',                                     45000,  120000, 2, 'minor_defect'),
-  (9,  3, 2, 'Meja Belajar Lipat Kayu',          'Meja belajar lipat ukuran 60x40 cm, kokoh untuk laptop dan buku. COD area Cisitu/Gerbang ITB.',                        85000,  175000, 1, 'like_new'),
-  (10, 3, 6, 'Dumbbell Set 2x3 kg',              'Sepasang dumbbell 3 kg, cocok untuk olahraga ringan di kamar kost.',                                                      65000,  140000, 1, 'like_new'),
-  (11, 4, 8, 'Lampu Belajar LED Jepit',          'Lampu belajar LED model jepit dengan 3 tingkat cahaya, kabel panjang. COD Pogung/UGM.',                                 35000,   85000, 1, 'good'),
-  (12, 4, 1, 'Monitor Eksternal 22 Inch FHD',    'Monitor IPS 75Hz mulus tanpa dead pixel, lengkap kabel HDMI dan adaptor. Cocok untuk skripsian.',                       850000, 1500000, 1, 'like_new'),
-  (13, 5, 6, 'Raket Badminton Yonex Astrox',     'Tarikan senar 26 lbs, grip baru diganti, tas raket ikut. COD Gerbang Watugong UB.',                                    280000,  520000, 1, 'like_new'),
-  (14, 5, 3, 'Jaket Almamater & Hoodie Kampus',  'Hoodie tebal ukuran L warna navy, jarang dipakai, kondisi bersih wangi.',                                               95000,  210000, 1, 'good'),
-  (15, 6, 5, 'Kompor Portable + 2 Kaleng Gas',   'Kompor gas portable merek Winn Gas, pemantik normal, bonus 2 kaleng gas siap pakai di Tembalang.',                     135000,  260000, 1, 'like_new'),
-  (16, 6, 1, 'Dispenser Galon Bawah Mini',       'Dispenser air panas dan normal ukuran ringkas untuk kamar kost, hemat listrik.',                                        190000,  380000, 1, 'good');
+INSERT INTO products (id, store_id, category_id, name, description, price, original_price, stock, condition, created_at) VALUES
+  (1,  1, 2, 'Kasur Lipat Busa Inoac 90x200 cm',
+       'Kasur lipat busa density tinggi tebal 10 cm warna navy, dipakai 11 bulan selama semester akhir di Tamalanrea. Sarung resleting baru dicuci laundry, empuk tidak kempes, tidak ada noda. Cocok langsung masuk kamar kost, siap COD Pintu 1 UNHAS atau bantu angkut sekitar Tamalanrea.',
+       240000, 520000, 1, 'good', NOW() - INTERVAL '18 days'),
+  (2,  1, 2, 'Rak Buku Susun 4 Tingkat Portable',
+       'Rak buku susun 4 tingkat rangka pipa metal ringan dan alas plastik anti air. Mudah dibongkar pasang saat pindah kost. Ada sedikit goresan halus pemakaian di kaki bawah tapi berdiri kokoh menampung buku kuliah tebal.',
+       75000, 155000, 1, 'fair', NOW() - INTERVAL '17 days'),
+  (3,  1, 5, 'Rice Cooker Mini Miyako 0.6L',
+       'Rice cooker mini kapasitas 0.6 liter (300 Watt, ramah listrik token kost). Fungsi masak dan penghangat 100% normal, panci anti lengket masih mulus, lengkap kabel power, centong nasi, dan gelas takar. Sisa 1 unit milik teman sekost yang ikut pindahan.',
+       115000, 245000, 1, 'like_new', NOW() - INTERVAL '16 days'),
+  (4,  1, 5, 'Set Piring Keramik Polos (12 pcs)',
+       'Satu paket berisi 12 piring makan keramik warna putih gading polos, diameter standar makan harian. Tidak ada retak maupun gompel, selalu dicuci bersih. Dijual sepaket karena mau pulang kampung setelah sidang.',
+       65000, 140000, 2, 'good', NOW() - INTERVAL '15 days'),
+  (5,  2, 1, 'Laptop Asus VivoBook 14 Core i3 8GB/256GB',
+       'Asus VivoBook 14 inci Intel Core i3 Gen 10, RAM 8GB DDR4, SSD NVMe 256GB, layar Full HD jernih tanpa dead pixel. Baterai masih awet sekitar 3-4 jam untuk ngetik dan ngoding. Kelengkapan unit laptop, charger ori Asus, dan softcase. Siap cek sepuasnya COD Kukusan Teknik atau Stasiun UI.',
+       3350000, 6100000, 1, 'good', NOW() - INTERVAL '14 days'),
+  (6,  2, 1, 'Kipas Angin Meja Sekai 9 Inch',
+       'Kipas angin meja Sekai ukuran 9 inch dengan 3 tingkat kecepatan angin. Putaran halus tidak berisik saat tidur malam, kabel ori panjang dan tombol semua empuk. Pemakaian baru 6 bulan di kamar kost ber-jendela.',
+       65000, 145000, 1, 'like_new', NOW() - INTERVAL '13 days'),
+  (7,  2, 4, 'Kalkulator Ilmiah Casio fx-991EX ClassWiz',
+       'Kalkulator ilmiah Casio fx-991EX ClassWiz original dua sumber daya (solar & baterai), 552 fungsi lengkap matriks, integral, dan statistik. Layar beresolusi tinggi super jelas, lengkap hardcase geser asli. Cocok untuk mahasiswa Teknik, MIPA, dan Ekonomi.',
+       140000, 295000, 0, 'good', NOW() - INTERVAL '12 days'),
+  (8,  2, 4, 'Paket Buku Pemrograman C, C++, Java & Python',
+       'Bundling buku referensi ilmu komputer bekas kuliah (Bahasa C, C++, Java, dan Python). Ada sedikit coretan pensil dan stabilo rapi di beberapa bab penting, jilid masih utuh dan halaman lengkap terbaca jelas. Hemat banget dibanding beli baru.',
+       85000, 240000, 2, 'minor_defect', NOW() - INTERVAL '11 days'),
+  (9,  3, 2, 'Meja Belajar Lipat Kayu 60x40 cm',
+       'Meja belajar lipat permukaan motif kayu natural ukuran 60x40 cm lengkap slot tempat gelas dan kaki besi hitam anti slip. Sangat kokoh buat laptop 14-15 inch plus buku catatan. Ringkas dilipat di samping lemari, siap COD Cisitu Lama atau Gerbang ITB.',
+       85000, 175000, 1, 'like_new', NOW() - INTERVAL '10 days'),
+  (10, 3, 6, 'Dumbbell Neoprene Set 2x3 kg',
+       'Sepasang dumbbell 3 kg (total 6 kg) lapisan neoprene warna navy anti licin dan tidak merusak keramik lantai kost. Bentuk heksagonal jadi tidak menggelinding saat ditaruh. Pemakaian ringan di kamar saja.',
+       75000, 155000, 1, 'like_new', NOW() - INTERVAL '9 days'),
+  (11, 4, 8, 'Lampu Belajar Meja Hitam Fleksibel',
+       'Lampu belajar meja model arsitek warna hitam klasik, sudut kepala bisa diatur sesuai arah baca. Fitting E27 standar, sakelar lancar, cocok banget buat lembur tugas atau revisi skripsi tanpa mengganggu teman sekamar. COD Pogung Baru UGM.',
+       45000, 105000, 1, 'good', NOW() - INTERVAL '8 days'),
+  (12, 4, 1, 'Monitor Eksternal LG Flatron 20 Inch',
+       'Monitor eksternal LG Flatron 20 inch wide layar jernih, warna tajam tanpa garis maupun dead pixel. Cocok buat dual screen coding, desain, atau buka referensi skripsi bareng MS Word. Bonus kabel power dan kabel VGA/HDMI converter.',
+       590000, 1250000, 1, 'good', NOW() - INTERVAL '7 days'),
+  (13, 5, 6, 'Raket Badminton Yonex Astrox Lite + Tas',
+       'Raket bulutangkis Yonex Astrox Lite original ringan dan responsif, sudah terpasang senar tarikan 26 lbs dan grip handuk putih bersih. Bonus tas selempang Yonex original warna hitam biru. Siap COD Gerbang Watugong UB atau area Sumbersari.',
+       275000, 520000, 1, 'like_new', NOW() - INTERVAL '6 days'),
+  (14, 5, 3, 'Hoodie Fleece Navy Uniqlo Ukuran L',
+       'Pullover hoodie Uniqlo original warna navy ukuran L (LD 114 cm, panjang 69 cm). Bahan fleece tebal hangat cocok buat kuliah pagi di Malang atau naik motor malam. Sudah dilaundry bersih wangi, tidak berbulu dan warna masih pekat.',
+       135000, 399000, 1, 'good', NOW() - INTERVAL '5 days'),
+  (15, 6, 5, 'Kompor Gas Portable Iwatani + 2 Kaleng Gas',
+       'Kompor gas portable stainless merek Iwatani api biru merata dan hemat gas. Pemantik piezo sekali klik langsung nyala, sangat praktis untuk masak mie, rebus telur, atau hotpot anak kost. Bonus 2 kaleng gas butane isi penuh (khusus COD Tembalang).',
+       165000, 340000, 1, 'like_new', NOW() - INTERVAL '4 days'),
+  (16, 6, 1, 'Dispenser Galon Bawah Stainless Brio',
+       'Dispenser air galon bawah bodi stainless hitam elegan dengan 3 keran (panas, normal, dingin) sehingga tidak perlu angkat galon berat. Mesin dingin dan pemanas normal terawat, rutin dikuras tiap bulan. Siap bantu angkut sekitar Tembalang Semarang.',
+       420000, 950000, 1, 'good', NOW() - INTERVAL '3 days'),
+  (17, 7, 7, 'Helm Half Face Hitam Doff + Visor Bening',
+       'Helm half face standar SNI warna hitam doff dengan visor bening pandangan jelas di malam hari. Busa dalam masih empuk dan sudah dicuci bersih, pengait tali klik aman. Ada beberapa baret tipis pemakaian normal di bagian samping.',
+       145000, 320000, 1, 'fair', NOW() - INTERVAL '2 days'),
+  (18, 7, 2, 'Lemari Pakaian Portable 3 Pintu Abu-Abu',
+       'Lemari kain portable 3 pintu warna abu-abu gelap dengan rangka pipa besi kokoh dan cover resleting anti debu. Kapasitas lega ada bagian gantung kemeja dan rak lipat baju. Baru dipakai 1 semester di Jatinangor, bisa dibongkar masuk jok motor.',
+       125000, 260000, 1, 'like_new', NOW() - INTERVAL '36 hours'),
+  (19, 8, 1, 'Setrika Uap Listrik Russell Hobbs Anti Lengket',
+       'Setrika uap listrik Russell Hobbs warna ungu putih, tapak keramik licin anti lengket cepat menghaluskan kemeja kuliah dan jas almamater. Kabel putar 360 derajat tidak mudah melilit, tangki air bersih tidak berkerak. Siap COD Keputih ITS.',
+       155000, 349000, 1, 'like_new', NOW() - INTERVAL '18 hours'),
+  (20, 8, 4, 'Paket Buku Referensi Kalkulus & Fisika Dasar',
+       'Paket hemat buku wajib TPB / semester 1-2 teknik dan sains (Kalkulus, Fisika Dasar, dan buku latihan soal). Kondisi punggung buku sedikit terlipat karena sering dibawa ke kelas, tapi seluruh halaman utuh bersih tanpa robek.',
+       70000, 195000, 1, 'minor_defect', NOW() - INTERVAL '8 hours');
 
-SELECT setval(pg_get_serial_sequence('campuses',   'id'), (SELECT MAX(id) FROM campuses));
-SELECT setval(pg_get_serial_sequence('users',      'id'), (SELECT MAX(id) FROM users));
-SELECT setval(pg_get_serial_sequence('stores',     'id'), (SELECT MAX(id) FROM stores));
-SELECT setval(pg_get_serial_sequence('categories', 'id'), (SELECT MAX(id) FROM categories));
-SELECT setval(pg_get_serial_sequence('products',   'id'), (SELECT MAX(id) FROM products));
+INSERT INTO product_images (id, product_id, url, position) VALUES
+  (1,  1,  '/uploads/products/prod-kasur-lipat.jpg',      0),
+  (2,  2,  '/uploads/products/prod-rak-buku.jpg',         0),
+  (3,  3,  '/uploads/products/prod-rice-cooker.jpg',      0),
+  (4,  4,  '/uploads/products/prod-piring-gelas.jpg',     0),
+  (5,  5,  '/uploads/products/prod-laptop-vivobook.jpg',  0),
+  (6,  6,  '/uploads/products/prod-kipas-meja.jpg',       0),
+  (7,  7,  '/uploads/products/prod-kalkulator-casio.jpg', 0),
+  (8,  8,  '/uploads/products/prod-buku-kuliah.jpg',      0),
+  (9,  9,  '/uploads/products/prod-meja-lipat.jpg',       0),
+  (10, 10, '/uploads/products/prod-dumbbell.jpg',         0),
+  (11, 11, '/uploads/products/prod-lampu-led.jpg',        0),
+  (12, 12, '/uploads/products/prod-monitor-lg.jpg',       0),
+  (13, 13, '/uploads/products/prod-raket-yonex.jpg',      0),
+  (14, 14, '/uploads/products/prod-hoodie-uniqlo.jpg',    0),
+  (15, 15, '/uploads/products/prod-kompor-portable.jpg',  0),
+  (16, 16, '/uploads/products/prod-dispenser-mini.jpg',   0),
+  (17, 17, '/uploads/products/prod-helm-kyt.jpg',         0),
+  (18, 18, '/uploads/products/prod-lemari-portable.jpg',  0),
+  (19, 19, '/uploads/products/prod-setrika-philips.jpg',  0),
+  (20, 20, '/uploads/products/prod-buku-teknik.jpg',      0);
 
-INSERT INTO addresses (user_id, label, recipient_name, phone, address_line, city, postal_code, is_default) VALUES
-  (10, 'Kost UNHAS', 'Andi Firmansyah', '081200000010', 'Jl. Perintis Kemerdekaan Km 10, Kost Mawar No. 4', 'Makassar', '90245', TRUE),
-  (11, 'Kost UI',    'Nabila Zahra',    '081200000011', 'Jl. Kukusan Raya No. 18, Beji',                    'Depok',    '16425', TRUE);
+INSERT INTO addresses (id, user_id, label, recipient_name, phone, address_line, city, postal_code, is_default) VALUES
+  (1, 12, 'Kost Tamalanrea UNHAS', 'Andi Firmansyah', '081241881111', 'Jl. Perintis Kemerdekaan Km 10, Pondok Mawar Kamar 4, Tamalanrea', 'Makassar', '90245', TRUE),
+  (2, 13, 'Kost Kukusan UI',       'Nabila Zahra',    '081384992222', 'Jl. Kukusan Raya Gang Haji Amat No. 18, Beji',                     'Depok',    '16425', TRUE),
+  (3, 14, 'Kost Pogung UGM',       'Rafi Alfarizi',   '081227773333', 'Jl. Kaliurang Km 5.5, Pogung Baru Blok C No. 12, Mlati',           'Sleman',   '55284', TRUE);
 
-INSERT INTO cart_items (user_id, product_id, quantity) VALUES
-  (10, 1, 1),
-  (10, 4, 1);
+INSERT INTO cart_items (id, user_id, product_id, quantity) VALUES
+  (1, 12, 4,  1),
+  (2, 12, 6,  1),
+  (3, 13, 14, 1);
 
 INSERT INTO wishlists (user_id, product_id) VALUES
-  (10, 5),
-  (11, 12);
+  (12, 5),
+  (12, 12),
+  (12, 17),
+  (13, 19),
+  (13, 18),
+  (14, 12);
 
 INSERT INTO orders (id, order_code, buyer_id, store_id, buyer_name, store_name, status, delivery_method,
                     shipping_recipient, shipping_phone, shipping_address, note, total_amount, created_at) VALUES
-  (1, 'LPS-20261105-0001', 10, 1, 'Andi Firmansyah', 'Lapak Dinda UNHAS', 'completed',  'meetup',   NULL, NULL, NULL, 'COD di depan Pintu 1 UNHAS ya kak', 90000, NOW() - INTERVAL '7 days'),
-  (2, 'LPS-20261110-0002', 11, 2, 'Nabila Zahra',    'Rizky Preloved UI', 'processing', 'delivery', 'Nabila Zahra', '081200000011', 'Jl. Kukusan Raya No. 18, Beji, Depok 16425', NULL, 155000, NOW() - INTERVAL '3 days');
+  (1, 'LPS-20261110-0001', 12, 1, 'Andi Firmansyah', 'Lapak Dinda UNHAS',  'completed',       'meetup',
+      NULL, NULL, NULL,
+      'COD di depan gerbang Pintu 1 UNHAS jam 16.00 WITA ya kak', 115000, NOW() - INTERVAL '14 days'),
+  (2, 'LPS-20261115-0002', 13, 2, 'Nabila Zahra',    'Rizky Preloved UI',  'completed',       'delivery',
+      'Nabila Zahra', '081384992222', 'Jl. Kukusan Raya Gang Haji Amat No. 18, Beji, Depok 16425',
+      'Titip di ibu kost lantai 1 jika saya sedang kelas ya kak', 225000, NOW() - INTERVAL '9 days'),
+  (3, 'LPS-20261117-0003', 14, 4, 'Rafi Alfarizi',   'Dimas Preloved UGM', 'completed',       'meetup',
+      NULL, NULL, NULL,
+      'Ketemuan di depan Indomaret Pogung Baru sore ini', 45000, NOW() - INTERVAL '7 days'),
+  (4, 'LPS-20261119-0004', 12, 1, 'Andi Firmansyah', 'Lapak Dinda UNHAS',  'completed',       'meetup',
+      NULL, NULL, NULL,
+      'Ambil langsung di Pintu 1 UNHAS habis kelas siang', 75000, NOW() - INTERVAL '5 days'),
+  (5, 'LPS-20261121-0005', 12, 1, 'Andi Firmansyah', 'Lapak Dinda UNHAS',  'shipped',         'meetup',
+      NULL, NULL, NULL,
+      'Siap COD sore ini jam 17.00 di parkiran Pintu 1 UNHAS ya kak', 240000, NOW() - INTERVAL '2 days'),
+  (6, 'LPS-20261122-0006', 13, 3, 'Nabila Zahra',    'Alya Kos ITB',       'processing',      'delivery',
+      'Nabila Zahra', '081384992222', 'Jl. Kukusan Raya Gang Haji Amat No. 18, Beji, Depok 16425',
+      'Tolong dibungkus kardus dan bubble wrap di ujung meja ya kak', 85000, NOW() - INTERVAL '1 day'),
+  (7, 'LPS-20261123-0007', 14, 5, 'Rafi Alfarizi',   'Fajar Thrift UB',    'pending_payment', 'delivery',
+      'Rafi Alfarizi', '081227773333', 'Jl. Kaliurang Km 5.5, Pogung Baru Blok C No. 12, Mlati, Sleman 55284',
+      'Kirim pakai ekspedisi reguler dengan pengaman kardus ya mas', 275000, NOW() - INTERVAL '6 hours');
 
-INSERT INTO order_items (id, order_id, product_id, product_name, unit_price, quantity) VALUES
-  (1, 1, 3, 'Rice Cooker Mini 0.6L',           90000,  1),
-  (2, 2, 7, 'Kalkulator Ilmiah Casio fx-991',  110000, 1),
-  (3, 2, 8, 'Buku Algoritma dan Struktur Data', 45000, 1);
+INSERT INTO order_items (id, order_id, product_id, product_name, product_image_url, unit_price, quantity) VALUES
+  (1, 1, 3,  'Rice Cooker Mini Miyako 0.6L',                 '/uploads/products/prod-rice-cooker.jpg',      115000, 1),
+  (2, 2, 7,  'Kalkulator Ilmiah Casio fx-991EX ClassWiz',    '/uploads/products/prod-kalkulator-casio.jpg', 140000, 1),
+  (3, 2, 8,  'Paket Buku Pemrograman C, C++, Java & Python', '/uploads/products/prod-buku-kuliah.jpg',       85000, 1),
+  (4, 3, 11, 'Lampu Belajar Meja Hitam Fleksibel',           '/uploads/products/prod-lampu-led.jpg',         45000, 1),
+  (5, 4, 2,  'Rak Buku Susun 4 Tingkat Portable',            '/uploads/products/prod-rak-buku.jpg',          75000, 1),
+  (6, 5, 1,  'Kasur Lipat Busa Inoac 90x200 cm',             '/uploads/products/prod-kasur-lipat.jpg',      240000, 1),
+  (7, 6, 9,  'Meja Belajar Lipat Kayu 60x40 cm',             '/uploads/products/prod-meja-lipat.jpg',        85000, 1),
+  (8, 7, 13, 'Raket Badminton Yonex Astrox Lite + Tas',      '/uploads/products/prod-raket-yonex.jpg',      275000, 1);
 
-SELECT setval(pg_get_serial_sequence('orders',      'id'), (SELECT MAX(id) FROM orders));
-SELECT setval(pg_get_serial_sequence('order_items', 'id'), (SELECT MAX(id) FROM order_items));
+INSERT INTO reviews (id, order_item_id, product_id, buyer_id, rating, comment, created_at) VALUES
+  (1, 1, 3,  12, 5, 'Sesuai deskripsi banget, panci masih mulus dan langsung dicoba masak nasi matang merata. Kak Dinda ramah dan tepat waktu pas COD di Pintu 1 UNHAS.', NOW() - INTERVAL '12 days'),
+  (2, 2, 7,  13, 5, 'Kalkulator Casio original, tombol empuk semua dan layar super bening. Pengiriman dari Kukusan Teknik cepat banget sampai kost.',                       NOW() - INTERVAL '7 days'),
+  (3, 4, 11, 14, 4, 'Lampu belajarnya terang dan engselnya kokoh buat lembur nugas. Sesuai foto, COD lancar di Pogung Baru.',                                             NOW() - INTERVAL '5 days');
 
-INSERT INTO reviews (order_item_id, product_id, buyer_id, rating, comment) VALUES
-  (1, 3, 10, 5, 'Sesuai deskripsi, masih mulus dan langsung bisa dipakai. Penjual ramah dan tepat waktu saat COD di Pintu 1.');
+INSERT INTO chats (id, order_id, store_id, product_id, sender_id, receiver_id, message, created_at) VALUES
+  (1, 5,    1, 1,    12, 2, 'Halo kak Dinda, untuk pesanan kasur lipat Inoac apakah sore ini jam 17.00 WITA bisa COD di dekat gerbang Pintu 1 UNHAS?', NOW() - INTERVAL '1 day 20 hours'),
+  (2, 5,    1, 1,    2, 12, 'Halo Andi! Bisa banget ya, kasurnya sudah saya lipat rapi masuk plastik besar biar gampang dibawa naik motor.',             NOW() - INTERVAL '1 day 19 hours'),
+  (3, 5,    1, 1,    12, 2, 'Siap kak, makasih banyak sudah dibungkus rapi. Nanti saya kabari 15 menit sebelum sampai Pintu 1 ya.',                     NOW() - INTERVAL '1 day 18 hours'),
+  (4, 5,    1, 1,    2, 12, 'Oke ditunggu ya Andi, saya posisi di seberang minimarket Pintu 1.',                                                        NOW() - INTERVAL '12 hours'),
+  (5, NULL, 2, 5,    12, 3, 'Halo bang Rizky, Laptop Asus VivoBook 14-nya masih ready? Untuk baterai tahan berapa jam buat coding?',                    NOW() - INTERVAL '2 days'),
+  (6, NULL, 2, 5,    3, 12, 'Halo Andi, masih ready ya. Baterai normal 3-4 jam buat VS Code + browser, charger ori Asus juga masih mulus.',             NOW() - INTERVAL '1 day 22 hours'),
+  (7, NULL, 2, 5,    12, 3, 'Oke siap bang, saya simpan dulu di favorit sambil tunggu transferan bulan ini. Makasih infonya!',                          NOW() - INTERVAL '1 day 21 hours'),
+  (8, 6,    3, 9,    13, 4, 'Halo kak Alya, saya baru checkout meja belajar lipatnya ya. Mohon dibantu packing aman ke Depok.',                         NOW() - INTERVAL '20 hours'),
+  (9, 6,    3, 9,    4, 13, 'Halo Nabila! Pesanan sudah saya terima, sore ini langsung saya bungkus bubble wrap tebal dan kirim via kargo ya.',         NOW() - INTERVAL '18 hours');
+
+SELECT setval(pg_get_serial_sequence('campuses',       'id'), (SELECT MAX(id) FROM campuses));
+SELECT setval(pg_get_serial_sequence('users',          'id'), (SELECT MAX(id) FROM users));
+SELECT setval(pg_get_serial_sequence('stores',         'id'), (SELECT MAX(id) FROM stores));
+SELECT setval(pg_get_serial_sequence('categories',     'id'), (SELECT MAX(id) FROM categories));
+SELECT setval(pg_get_serial_sequence('products',       'id'), (SELECT MAX(id) FROM products));
+SELECT setval(pg_get_serial_sequence('product_images', 'id'), (SELECT MAX(id) FROM product_images));
+SELECT setval(pg_get_serial_sequence('addresses',      'id'), (SELECT MAX(id) FROM addresses));
+SELECT setval(pg_get_serial_sequence('cart_items',     'id'), (SELECT MAX(id) FROM cart_items));
+SELECT setval(pg_get_serial_sequence('orders',         'id'), (SELECT MAX(id) FROM orders));
+SELECT setval(pg_get_serial_sequence('order_items',    'id'), (SELECT MAX(id) FROM order_items));
+SELECT setval(pg_get_serial_sequence('reviews',        'id'), (SELECT MAX(id) FROM reviews));
+SELECT setval(pg_get_serial_sequence('chats',          'id'), (SELECT MAX(id) FROM chats));
 
 COMMIT;
