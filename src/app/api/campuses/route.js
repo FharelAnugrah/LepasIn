@@ -1,19 +1,20 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { toIlikeSearchPattern } from '@/lib/params';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const q = searchParams.get('q');
+    const searchPattern = toIlikeSearchPattern(searchParams.get('q'));
 
     let sql = `SELECT id, name, short_name, city, province FROM campuses`;
     const params = [];
 
-    if (q && q.trim()) {
-      sql += ` WHERE name ILIKE $1 OR short_name ILIKE $1 OR city ILIKE $1 OR province ILIKE $1`;
-      params.push(`%${q.trim()}%`);
+    if (searchPattern) {
+      sql += ` WHERE name ILIKE $1 ESCAPE '\\' OR short_name ILIKE $1 ESCAPE '\\' OR city ILIKE $1 ESCAPE '\\' OR province ILIKE $1 ESCAPE '\\'`;
+      params.push(searchPattern);
     }
 
     sql += ` ORDER BY name ASC`;

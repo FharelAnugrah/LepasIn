@@ -1,6 +1,6 @@
 import { query } from '@/lib/db';
 import { getCurrentUser, redirectRestrictedPublicRole } from '@/lib/auth';
-import { parsePositiveInt, parseNonNegativeInt } from '@/lib/params';
+import { parsePositiveInt, parseNonNegativeInt, toIlikeSearchPattern } from '@/lib/params';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import BottomNav from '@/components/layout/BottomNav';
@@ -18,7 +18,8 @@ export default async function ProductsPage({ searchParams }) {
   const user = await getCurrentUser();
   redirectRestrictedPublicRole(user);
 
-  const q = sp?.q || null;
+  const q = (Array.isArray(sp?.q) ? sp.q[0] : sp?.q) || null;
+  const searchPattern = toIlikeSearchPattern(q);
   const campus = parsePositiveInt(sp?.campus);
   const category = parsePositiveInt(sp?.category);
   const store = parsePositiveInt(sp?.store);
@@ -57,7 +58,7 @@ export default async function ProductsPage({ searchParams }) {
     LEFT JOIN (SELECT product_id, ROUND(AVG(rating), 1)::float AS avg_rating, COUNT(*)::int AS review_count
                FROM reviews GROUP BY product_id) r ON r.product_id = p.id
     WHERE p.is_deleted = FALSE
-      AND ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
+      AND ($1::text IS NULL OR p.name ILIKE $1 ESCAPE '\\' OR s.name ILIKE $1 ESCAPE '\\')
       AND ($2::int  IS NULL OR s.campus_id = $2)
       AND ($3::int  IS NULL OR p.category_id = $3)
       AND ($4::text IS NULL OR p.condition = $4)
@@ -75,7 +76,7 @@ export default async function ProductsPage({ searchParams }) {
     JOIN campuses cp  ON cp.id = s.campus_id
     JOIN users u      ON u.id = s.user_id AND u.seller_status = 'approved'
     WHERE p.is_deleted = FALSE
-      AND ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
+      AND ($1::text IS NULL OR p.name ILIKE $1 ESCAPE '\\' OR s.name ILIKE $1 ESCAPE '\\')
       AND ($2::int  IS NULL OR s.campus_id = $2)
       AND ($3::int  IS NULL OR p.category_id = $3)
       AND ($4::text IS NULL OR p.condition = $4)
@@ -84,7 +85,7 @@ export default async function ProductsPage({ searchParams }) {
       AND ($7::int  IS NULL OR s.id = $7)
   `;
 
-  const filterParams = [q, campus, category, condition, minPrice, maxPrice, store];
+  const filterParams = [searchPattern, campus, category, condition, minPrice, maxPrice, store];
 
   const [productsRes, countRes, categoriesRes, campusesRes] = await Promise.all([
     query(sql, [...filterParams, limit, offset]),
@@ -106,7 +107,7 @@ export default async function ProductsPage({ searchParams }) {
   const totalPages = Math.ceil(total / limit);
 
   let matchedStores = [];
-  if (q && q.trim()) {
+  if (searchPattern) {
     const storeSearchRes = await query(
       `SELECT s.id, s.name, s.description, s.location, s.image_url,
               cp.short_name AS campus_short_name, cp.name AS campus_name,
@@ -114,11 +115,11 @@ export default async function ProductsPage({ searchParams }) {
        FROM stores s
        JOIN users u ON u.id = s.user_id AND u.seller_status = 'approved'
        JOIN campuses cp ON cp.id = s.campus_id
-       WHERE s.name ILIKE '%' || $1 || '%'
+       WHERE s.name ILIKE $1 ESCAPE '\\'
          AND ($2::int IS NULL OR s.campus_id = $2)
        ORDER BY products_count DESC, s.name ASC
        LIMIT 4`,
-      [q.trim(), campus]
+      [searchPattern, campus]
     );
     matchedStores = storeSearchRes.rows;
   }

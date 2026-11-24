@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { parsePositiveInt, parseNonNegativeInt } from '@/lib/params';
+import { parsePositiveInt, parseNonNegativeInt, toIlikeSearchPattern } from '@/lib/params';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const q = searchParams.get('q') || null;
+    const searchPattern = toIlikeSearchPattern(searchParams.get('q'));
     const campus = parsePositiveInt(searchParams.get('campus'));
     const category = parsePositiveInt(searchParams.get('category'));
     const condition = searchParams.get('condition') || null;
@@ -46,7 +46,7 @@ export async function GET(request) {
       LEFT JOIN (SELECT product_id, ROUND(AVG(rating), 1)::float AS avg_rating, COUNT(*)::int AS review_count
                  FROM reviews GROUP BY product_id) r ON r.product_id = p.id
       WHERE p.is_deleted = FALSE
-        AND ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
+        AND ($1::text IS NULL OR p.name ILIKE $1 ESCAPE '\\' OR s.name ILIKE $1 ESCAPE '\\')
         AND ($2::int  IS NULL OR s.campus_id = $2)
         AND ($3::int  IS NULL OR p.category_id = $3)
         AND ($4::text IS NULL OR p.condition = $4)
@@ -63,7 +63,7 @@ export async function GET(request) {
       JOIN campuses cp  ON cp.id = s.campus_id
       JOIN users u      ON u.id = s.user_id AND u.seller_status = 'approved'
       WHERE p.is_deleted = FALSE
-        AND ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
+        AND ($1::text IS NULL OR p.name ILIKE $1 ESCAPE '\\' OR s.name ILIKE $1 ESCAPE '\\')
         AND ($2::int  IS NULL OR s.campus_id = $2)
         AND ($3::int  IS NULL OR p.category_id = $3)
         AND ($4::text IS NULL OR p.condition = $4)
@@ -71,7 +71,7 @@ export async function GET(request) {
         AND ($6::int  IS NULL OR p.price <= $6)
     `;
 
-    const filterParams = [q, campus, category, condition, minPrice, maxPrice];
+    const filterParams = [searchPattern, campus, category, condition, minPrice, maxPrice];
     const [result, countResult] = await Promise.all([
       query(sql, [...filterParams, limit, offset]),
       query(countSql, filterParams),

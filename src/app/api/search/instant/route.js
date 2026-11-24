@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { parsePositiveInt } from '@/lib/params';
+import { parsePositiveInt, toIlikeSearchPattern } from '@/lib/params';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +14,8 @@ export async function GET(request) {
       return NextResponse.json({ products: [], stores: [] });
     }
 
+    const searchPattern = toIlikeSearchPattern(q);
+
     // 1. Live query produk (mencocokkan nama produk atau nama toko)
     const productsRes = await query(
       `SELECT p.id, p.name, p.price, p.stock, p.condition,
@@ -24,13 +26,13 @@ export async function GET(request) {
        JOIN stores s ON s.id = p.store_id
        JOIN campuses cp ON cp.id = s.campus_id
        JOIN users u ON u.id = s.user_id AND u.seller_status = 'approved'
-       WHERE (p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
+       WHERE (p.name ILIKE $1 ESCAPE '\\' OR s.name ILIKE $1 ESCAPE '\\')
          AND ($2::int IS NULL OR s.campus_id = $2)
          AND p.stock > 0
          AND p.is_deleted = FALSE
        ORDER BY p.created_at DESC
        LIMIT 5`,
-      [q, campusId]
+      [searchPattern, campusId]
     );
 
     // 2. Live query toko yang cocok
@@ -41,11 +43,11 @@ export async function GET(request) {
        FROM stores s
        JOIN users u ON u.id = s.user_id AND u.seller_status = 'approved'
        JOIN campuses cp ON cp.id = s.campus_id
-       WHERE s.name ILIKE '%' || $1 || '%'
+       WHERE s.name ILIKE $1 ESCAPE '\\'
          AND ($2::int IS NULL OR s.campus_id = $2)
        ORDER BY products_count DESC, s.name ASC
        LIMIT 3`,
-      [q, campusId]
+      [searchPattern, campusId]
     );
 
     return NextResponse.json({
