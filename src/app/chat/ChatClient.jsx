@@ -284,7 +284,7 @@ export default function ChatClient({
     if (!trimmed || !activeTarget || sending) return;
 
     if (!activeChat?.currentUser?.isBuyer && !activeChat?.partner?.id) {
-      toast.error('Belum ada pembeli yang menghubungi toko ini untuk dibalas.');
+      toast.info('Belum ada pembeli yang menghubungi toko ini untuk dibalas.');
       return;
     }
 
@@ -877,10 +877,14 @@ export default function ChatClient({
 
                 <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
                   <Link
-                    href={`/products/${displayedProduct.id}`}
+                    href={
+                      activeChat.currentUser?.isBuyer
+                        ? `/products/${displayedProduct.id}`
+                        : `/seller/products/${displayedProduct.id}/edit`
+                    }
                     className="text-xs font-semibold text-brand-blue hover:bg-brand-blue hover:text-white px-3 py-2 min-h-[38px] rounded-lg border border-brand-blue-border bg-brand-blue-soft transition-colors inline-flex items-center justify-center gap-1"
                   >
-                    <span>Lihat Produk</span>
+                    <span>{activeChat.currentUser?.isBuyer ? 'Lihat Produk' : 'Kelola Produk'}</span>
                     <ExternalLink className="w-3 h-3" aria-hidden="true" />
                   </Link>
                   <button
@@ -919,7 +923,7 @@ export default function ChatClient({
                       <span>
                         Tujuan Kost:{' '}
                         <strong>
-                          {displayedOrder.shipping_address || 'Alamat kost pembeli'}
+                          {displayedOrder.shipping_address || 'Alamat pembeli'}
                         </strong>
                       </span>
                     </div>
@@ -1037,10 +1041,6 @@ export default function ChatClient({
             {/* Pesan Cepat (Single-Row Horizontal Scrollable Capsule Chips) */}
             {getObjectiveQuickReplies().length > 0 && (
               <div className="flex items-center gap-1.5 px-3 sm:px-4 py-2 border-t border-border-subtle bg-surface shrink-0 overflow-x-auto no-scrollbar">
-                <div className="flex items-center gap-1 text-[11px] font-bold text-ink-muted bg-canvas px-2.5 py-1 rounded-full border border-border-subtle shrink-0 select-none">
-                  <Zap className="w-3 h-3 text-campus-gold fill-campus-gold/30 shrink-0" aria-hidden="true" />
-                  <span className="tracking-tight">Pesan Cepat</span>
-                </div>
                 {getObjectiveQuickReplies().map((chip, idx) => (
                   <button
                     key={idx}

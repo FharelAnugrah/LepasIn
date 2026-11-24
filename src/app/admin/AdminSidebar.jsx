@@ -8,7 +8,6 @@ import {
   Tags,
   GraduationCap,
   Package,
-  ArrowLeft,
   ShieldCheck,
 } from 'lucide-react';
 import DashboardShell from '@/components/layout/DashboardShell';
@@ -78,9 +77,6 @@ export default function AdminSidebar({ user, pendingCount = 0, children }) {
       sectionTitle="Manajemen Platform"
       navItems={navItems}
       identitySlot={identitySlot}
-      catalogHref="/"
-      catalogLabel="Ke Katalog Publik"
-      catalogIcon={ArrowLeft}
       logoutLabel="Keluar Akun"
     >
       {children}

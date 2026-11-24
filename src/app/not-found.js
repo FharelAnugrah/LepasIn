@@ -8,7 +8,7 @@ export default function NotFound() {
   return (
     <div className="min-h-screen flex flex-col bg-canvas text-ink">
       <Suspense fallback={<div className="h-16 bg-surface border-b border-border-subtle" />}>
-        <Navbar showSearchBar={false} />
+        <Navbar showSearchBar={false} showCampusSelector={false} />
       </Suspense>
 
       <main

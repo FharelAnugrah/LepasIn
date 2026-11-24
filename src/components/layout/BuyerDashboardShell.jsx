@@ -40,7 +40,7 @@ export default function BuyerDashboardShell({
       isActive: pathname.startsWith('/buyer/profile'),
     },
     {
-      label: 'Alamat Kost',
+      label: 'Alamat',
       href: '/buyer/addresses',
       icon: MapPin,
       isActive: pathname.startsWith('/buyer/addresses'),

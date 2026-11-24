@@ -40,7 +40,7 @@ export async function getCurrentUser() {
               u.phone, u.avatar_url,
               u.campus_id, c.name AS campus_name, c.short_name AS campus_short_name, c.city AS campus_city,
               s.id AS store_id, s.name AS store_name, s.location AS store_location,
-              (SELECT COUNT(*)::int FROM products p WHERE p.store_id = s.id) AS products_count
+              (SELECT COUNT(*)::int FROM products p WHERE p.store_id = s.id AND p.is_deleted = FALSE) AS products_count
        FROM users u
        LEFT JOIN campuses c ON c.id = u.campus_id
        LEFT JOIN stores s ON s.user_id = u.id
@@ -127,4 +127,19 @@ export async function requireApprovedSeller(nextUrl = '') {
  */
 export async function requireBuyer(nextUrl = '') {
   return await requireRole('buyer', nextUrl);
+}
+
+/**
+ * Mengarahkan Admin atau Seller keluar dari halaman katalog/etalase publik
+ * ke halaman dashboard masing-masing.
+ * @param {object|null} user
+ */
+export function redirectRestrictedPublicRole(user) {
+  if (!user) return;
+  if (user.role === 'admin') {
+    redirect('/admin');
+  }
+  if (user.role === 'seller') {
+    redirect(user.seller_status === 'approved' ? '/seller' : '/pending-seller');
+  }
 }

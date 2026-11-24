@@ -29,6 +29,14 @@ export default async function ChatPage({ searchParams }) {
     redirect(`/login?next=${encodeURIComponent(redirectUrl)}`);
   }
 
+  if (user.role === 'admin') {
+    redirect('/admin');
+  }
+
+  if (user.role === 'seller' && user.seller_status !== 'approved') {
+    redirect('/pending-seller');
+  }
+
   let cartCount = 0;
   if (user.role === 'buyer') {
     const cartRes = await query(

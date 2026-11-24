@@ -170,6 +170,15 @@ export default function Navbar({
     router.push(queryString ? `/products?${queryString}` : '/products');
   };
 
+  const logoHref =
+    user?.role === 'admin'
+      ? '/admin'
+      : user?.role === 'seller'
+      ? user.seller_status === 'approved'
+        ? '/seller'
+        : '/pending-seller'
+      : '/';
+
   const dashboardHref =
     user?.role === 'admin'
       ? '/admin'
@@ -224,7 +233,7 @@ export default function Navbar({
         {/* Kiri: Brand Logo LepasIn + Campus Selector Pill */}
         <div className="flex items-center gap-2 lg:gap-3 min-w-0 shrink-0">
           <Link
-            href="/"
+            href={logoHref}
             className="group inline-flex items-baseline font-extrabold text-xl text-navy-900 tracking-tight shrink-0 transition-transform duration-150 hover:-translate-y-0.5 active:translate-y-0"
           >
             <span>LepasIn</span>

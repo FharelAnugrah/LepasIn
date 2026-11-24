@@ -16,6 +16,10 @@ export default async function PendingSellerPage() {
     redirect('/login');
   }
 
+  if (user.role === 'admin') {
+    redirect('/admin');
+  }
+
   if (user.role !== 'seller') {
     redirect('/');
   }

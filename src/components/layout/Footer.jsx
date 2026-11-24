@@ -1,7 +1,21 @@
 import Link from 'next/link';
 import { GraduationCap, Handshake, ShieldCheck } from 'lucide-react';
 
-export default function Footer() {
+export default function Footer({ minimal = false }) {
+  if (minimal) {
+    return (
+      <footer className="bg-navy-900 text-white border-t-4 border-navy-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] mt-auto py-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-300">
+          <p>2026 LepasIn. Marketplace Preloved Mahasiswa Indonesia.</p>
+          <p className="inline-flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-campus-gold shrink-0" aria-hidden="true" />
+            <span>Verifikasi identitas KTM untuk penjual terpercaya</span>
+          </p>
+        </div>
+      </footer>
+    );
+  }
+
   return (
     <footer className="bg-navy-900 text-white border-t-4 border-navy-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] mt-auto pt-10 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

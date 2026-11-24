@@ -40,6 +40,10 @@ export default function BottomNav({
     return () => window.removeEventListener('cart-updated', handleCartUpdated);
   }, []);
 
+  if (user && (user.role === 'admin' || user.role === 'seller')) {
+    return null;
+  }
+
   const getOrdersLink = () => {
     if (!user) return '/login?next=/buyer/orders';
     if (user.role === 'seller') return '/seller/orders';

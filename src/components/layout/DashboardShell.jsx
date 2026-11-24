@@ -20,13 +20,14 @@ export default function DashboardShell({
   sectionTitle,
   navItems = [],
   identitySlot,
-  catalogHref = '/products',
-  catalogLabel = 'Jelajah Katalog',
+  catalogHref = null,
+  catalogLabel = null,
   catalogIcon: CatalogIcon = ShoppingBag,
   logoutLabel = 'Keluar',
   children,
 }) {
   const router = useRouter();
+  const isRestrictedRole = user?.role === 'admin' || user?.role === 'seller';
 
   const handleLogout = async () => {
     try {
@@ -90,13 +91,15 @@ export default function DashboardShell({
           </div>
 
           <div className="pt-4 border-t border-border-subtle flex flex-col gap-1">
-            <Link
-              href={catalogHref}
-              className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-medium text-ink-secondary hover:bg-canvas hover:text-ink transition-colors"
-            >
-              <CatalogIcon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
-              <span>{catalogLabel}</span>
-            </Link>
+            {catalogHref && catalogLabel && (
+              <Link
+                href={catalogHref}
+                className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-medium text-ink-secondary hover:bg-canvas hover:text-ink transition-colors"
+              >
+                <CatalogIcon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
+                <span>{catalogLabel}</span>
+              </Link>
+            )}
             <button
               type="button"
               onClick={handleLogout}
@@ -158,7 +161,7 @@ export default function DashboardShell({
         </div>
       </div>
 
-      <Footer />
+      <Footer minimal={isRestrictedRole} />
       <BottomNav user={user} cartCount={cartCount} cartTotal={cartTotal} />
     </div>
   );

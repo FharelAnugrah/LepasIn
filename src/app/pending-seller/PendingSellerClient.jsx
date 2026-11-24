@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Image from 'next/image';
 import {
   Clock,
@@ -109,16 +108,13 @@ export default function PendingSellerClient({ user }) {
     <div className="max-w-lg mx-auto mt-12">
       <div className="surface-3d rounded-3xl p-8 text-center">
         <div className="mb-5">
-          <Link
-            href="/"
-            className="inline-flex items-baseline font-extrabold text-xl text-navy-900 tracking-tight"
-          >
+          <span className="inline-flex items-baseline font-extrabold text-xl text-navy-900 tracking-tight">
             <span>LepasIn</span>
             <span
               className="w-2 h-2 rounded-[4px] bg-campus-gold inline-block ml-0.5 mb-0.5 shadow-[0_2px_0_#B87D04]"
               aria-hidden="true"
             />
-          </Link>
+          </span>
         </div>
 
         {/* Ikon Status 3D */}

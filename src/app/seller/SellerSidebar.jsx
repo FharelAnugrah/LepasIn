@@ -7,7 +7,6 @@ import {
   Package,
   ShoppingBag,
   Store,
-  ArrowLeft,
   GraduationCap,
 } from 'lucide-react';
 import DashboardShell from '@/components/layout/DashboardShell';
@@ -81,9 +80,6 @@ export default function SellerSidebar({ user, store, newOrdersCount = 0, childre
       sectionTitle="Menu Penjual"
       navItems={navItems}
       identitySlot={identitySlot}
-      catalogHref="/"
-      catalogLabel="Ke Katalog Publik"
-      catalogIcon={ArrowLeft}
       logoutLabel="Keluar Akun"
     >
       {children}

@@ -21,10 +21,12 @@ export async function proxy(request) {
         return NextResponse.redirect(new URL('/admin', request.url));
       }
       if (role === 'seller') {
-        return NextResponse.redirect(new URL('/seller', request.url));
+        return NextResponse.redirect(
+          new URL(sellerStatus === 'approved' ? '/seller' : '/pending-seller', request.url)
+        );
       }
       const nextParam = request.nextUrl.searchParams.get('next');
-      if (nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')) {
+      if (nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') && !nextParam.startsWith('/\\')) {
         return NextResponse.redirect(new URL(nextParam, request.url));
       }
       return NextResponse.redirect(new URL('/', request.url));
@@ -37,6 +39,41 @@ export async function proxy(request) {
     const nextUrl = encodeURIComponent(pathname + search);
     return NextResponse.redirect(new URL(`/login?next=${nextUrl}`, request.url));
   };
+
+  // 1b. Pembatasan Katalog & Etalase Publik untuk Admin dan Seller
+  if (
+    pathname === '/' ||
+    pathname === '/products' ||
+    pathname.startsWith('/products/') ||
+    pathname.startsWith('/stores/')
+  ) {
+    if (isLoggedIn) {
+      if (role === 'admin') {
+        return NextResponse.redirect(new URL('/admin', request.url));
+      }
+      if (role === 'seller') {
+        return NextResponse.redirect(
+          new URL(sellerStatus === 'approved' ? '/seller' : '/pending-seller', request.url)
+        );
+      }
+    }
+    return NextResponse.next();
+  }
+
+  // 1c. Proteksi Rute Chat (/chat) — Khusus Buyer dan Seller Terverifikasi
+  if (pathname.startsWith('/chat')) {
+    if (!isLoggedIn) {
+      return redirectToLogin();
+    }
+    if (role === 'admin') {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
+    if (role !== 'buyer' && role !== 'seller') {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    // Validasi status seller disinkronkan oleh ChatPage terhadap database langsung
+    return NextResponse.next();
+  }
 
   // 2. Proteksi Rute Buyer (/buyer/*)
   if (pathname.startsWith('/buyer')) {
