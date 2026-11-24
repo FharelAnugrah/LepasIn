@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
@@ -10,8 +9,8 @@ import {
   Search,
   Store,
   GraduationCap,
-  ExternalLink,
   Eye,
+  AlertTriangle,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { ConditionBadge, formatRupiah } from '@/components/ui/Badge';
@@ -60,25 +59,11 @@ function ProductThumbnail({ imageUrl, name, onPreview }) {
 }
 
 /**
- * Judul produk dapat diklik menuju halaman publik (atau modal pratinjau jika toko belum disetujui).
+ * Judul produk dapat diklik untuk membuka modal pratinjau detail produk di halaman admin.
  * Tidak menggunakan class `block` agar `line-clamp-2` (`display: -webkit-box`) tetap memotong teks di 2 baris.
  */
 function ProductTitle({ product, onPreview, className = '' }) {
   const sharedClass = `font-bold text-ink hover:text-brand-blue hover:underline line-clamp-2 [overflow-wrap:anywhere] transition-colors ${className}`;
-
-  if (product.seller_status === 'approved') {
-    return (
-      <Link
-        href={`/products/${product.id}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={product.name}
-        className={sharedClass}
-      >
-        {product.name}
-      </Link>
-    );
-  }
 
   return (
     <button
@@ -93,36 +78,20 @@ function ProductTitle({ product, onPreview, className = '' }) {
 }
 
 /**
- * Tombol aksi moderasi proporsional (Lihat & Hapus).
+ * Tombol aksi moderasi proporsional (Lihat pratinjau & Hapus).
  */
 function ProductModerationActions({ product, onPreview, onDelete }) {
-  const isPubliclyVisible = product.seller_status === 'approved';
-
   return (
     <div className="inline-flex items-center justify-end gap-2">
-      {isPubliclyVisible ? (
-        <Button
-          href={`/products/${product.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          variant="secondary"
-          size="sm"
-          icon={ExternalLink}
-          aria-label={`Lihat halaman publik produk ${product.name} di tab baru`}
-        >
-          Lihat
-        </Button>
-      ) : (
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={Eye}
-          onClick={() => onPreview(product)}
-          aria-label={`Lihat pratinjau produk ${product.name}`}
-        >
-          Lihat
-        </Button>
-      )}
+      <Button
+        variant="secondary"
+        size="sm"
+        icon={Eye}
+        onClick={() => onPreview(product)}
+        aria-label={`Lihat pratinjau produk ${product.name}`}
+      >
+        Lihat
+      </Button>
       <Button
         variant="danger"
         size="sm"
@@ -155,6 +124,12 @@ export default function ProductsModerationManager({ initialProducts }) {
     loading: false,
   });
 
+  const [blockedDialog, setBlockedDialog] = useState({
+    isOpen: false,
+    product: null,
+    type: 'active', // 'active' atau 'completed'
+  });
+
   const filteredProducts = products.filter((p) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
@@ -184,6 +159,14 @@ export default function ProductsModerationManager({ initialProducts }) {
   };
 
   const handleOpenDelete = (product) => {
+    if (product.active_orders_count > 0) {
+      setBlockedDialog({
+        isOpen: true,
+        product,
+        type: 'active',
+      });
+      return;
+    }
     setDeleteDialog({
       isOpen: true,
       product,
@@ -315,6 +298,11 @@ export default function ProductsModerationManager({ initialProducts }) {
                         </>
                       )}
                     </div>
+                    {p.active_orders_count > 0 && (
+                      <span className="inline-block mt-1 text-[10px] font-semibold text-warning-text bg-warning-bg px-1.5 py-0.5 rounded border border-amber-200">
+                        {p.active_orders_count} Dipesan
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -405,6 +393,13 @@ export default function ProductsModerationManager({ initialProducts }) {
                           </>
                         )}
                       </div>
+                      {p.active_orders_count > 0 && (
+                        <div className="mt-1">
+                          <span className="text-[10px] font-semibold text-warning-text bg-warning-bg px-1.5 py-0.5 rounded border border-amber-200 whitespace-nowrap">
+                            {p.active_orders_count} Dipesan
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="py-3.5 px-3 xl:px-4 text-right">
                       <ProductModerationActions
@@ -525,18 +520,6 @@ export default function ProductsModerationManager({ initialProducts }) {
                 Tutup
               </Button>
               <div className="flex items-center gap-2">
-                {previewProduct.seller_status === 'approved' && (
-                  <Button
-                    href={`/products/${previewProduct.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="outline"
-                    size="sm"
-                    icon={ExternalLink}
-                  >
-                    Buka Halaman Produk
-                  </Button>
-                )}
                 <Button
                   variant="danger"
                   size="sm"
@@ -560,12 +543,81 @@ export default function ProductsModerationManager({ initialProducts }) {
         onClose={() => setDeleteDialog({ isOpen: false, product: null, loading: false })}
         onConfirm={handleConfirmDelete}
         loading={deleteDialog.loading}
-        title="Hapus Produk dari Katalog?"
-        message={`Apakah Anda yakin ingin menghapus produk "${deleteDialog.product?.name}" milik toko ${deleteDialog.product?.store_name}? Produk akan langsung dihilangkan dari katalog publik.`}
+        title={
+          deleteDialog.product?.completed_orders_count > 0
+            ? 'Hapus Produk Berriwayat Transaksi?'
+            : 'Hapus Produk dari Katalog?'
+        }
+        message={
+          deleteDialog.product?.completed_orders_count > 0
+            ? `Produk "${deleteDialog.product?.name}" milik toko ${deleteDialog.product?.store_name} memiliki ${deleteDialog.product?.completed_orders_count} riwayat transaksi selesai. Menghapusnya akan langsung menyembunyikan produk dari katalog publik dan lapak, sementara arsip pesanan serta ulasan pembeli tetap aman.`
+            : `Apakah Anda yakin ingin menghapus produk "${deleteDialog.product?.name}" milik toko ${deleteDialog.product?.store_name}? Produk akan langsung dihilangkan dari katalog publik.`
+        }
         confirmText="Ya, Hapus Produk"
         confirmVariant="danger"
         type="danger"
       />
+
+      {/* Modal Peringatan: Produk Dalam Transaksi Aktif atau Memiliki Riwayat Penjualan */}
+      <Modal
+        isOpen={blockedDialog.isOpen}
+        onClose={() => setBlockedDialog({ isOpen: false, product: null, type: 'active' })}
+        maxWidth="max-w-md"
+      >
+        <div className="flex flex-col items-center text-center p-1 sm:p-2">
+          <div
+            className={`w-13 h-13 rounded-2xl flex items-center justify-center mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_3px_0_rgba(15,41,74,0.12)] ${
+              blockedDialog.type === 'active'
+                ? 'bg-warning-bg border border-amber-200 text-warning-text'
+                : 'bg-surface-muted border border-border-subtle text-ink-secondary'
+            }`}
+          >
+            <AlertTriangle className="w-6 h-6" aria-hidden="true" />
+          </div>
+
+          <h3 className="text-lg font-bold text-ink mb-2">
+            {blockedDialog.type === 'active'
+              ? 'Produk Sedang Dalam Pesanan Aktif'
+              : 'Produk Memiliki Riwayat Transaksi'}
+          </h3>
+
+          <p className="text-sm text-ink-secondary mb-4 leading-relaxed">
+            Produk <strong className="text-ink">&quot;{blockedDialog.product?.name}&quot;</strong> milik toko{' '}
+            <strong className="text-ink">{blockedDialog.product?.store_name}</strong>{' '}
+            {blockedDialog.type === 'active' ? (
+              <>
+                saat ini sedang dalam proses pesanan aktif (
+                <strong className="text-warning-text">
+                  {blockedDialog.product?.active_orders_count} pesanan berjalan
+                </strong>
+                ).
+              </>
+            ) : (
+              <>
+                telah sukses terjual pada transaksi sebelumnya (
+                <strong className="text-brand-blue">
+                  {blockedDialog.product?.completed_orders_count} riwayat transaksi selesai
+                </strong>
+                ).
+              </>
+            )}
+          </p>
+
+          <p className="text-xs text-ink-muted bg-surface-muted border border-border-subtle rounded-xl p-3 mb-6 text-left leading-relaxed">
+            {blockedDialog.type === 'active'
+              ? 'Produk tidak dapat dimoderasi atau dihapus dari sistem sampai pesanan pembeli selesai atau dibatalkan demi perlindungan hak konsumen dan transparansi pengiriman.'
+              : 'Untuk menjaga keutuhan riwayat transaksi keuangan, arsip invoice, serta ulasan dan bintang pembeli, produk yang sudah berhasil terjual diproteksi dari penghapusan fisik.'}
+          </p>
+
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={() => setBlockedDialog({ isOpen: false, product: null, type: 'active' })}
+          >
+            Saya Mengerti
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -27,7 +27,7 @@ export default async function EditProductPage({ params }) {
   const prodRes = await query(
     `SELECT p.id, p.name, p.description, p.price, p.original_price, p.stock, p.condition, p.category_id
      FROM products p
-     WHERE p.id = $1 AND p.store_id = $2`,
+     WHERE p.id = $1 AND p.store_id = $2 AND p.is_deleted = FALSE`,
     [productId, store.id]
   );
 

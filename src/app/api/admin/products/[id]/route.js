@@ -4,7 +4,6 @@ import { withTransaction } from '@/lib/db';
 import {
   GuardError,
   findActiveOrdersByProduct,
-  countCompletedOrdersByProduct,
   formatActiveOrderSummary,
 } from '@/lib/order-guards';
 
@@ -26,7 +25,7 @@ export async function DELETE(request, { params }) {
 
     const deletedProduct = await withTransaction(async (client) => {
       const prodRes = await client.query(
-        `SELECT id, name FROM products WHERE id = $1 FOR UPDATE`,
+        `SELECT id, name FROM products WHERE id = $1 AND is_deleted = FALSE FOR UPDATE`,
         [productId]
       );
 
@@ -36,25 +35,22 @@ export async function DELETE(request, { params }) {
 
       const product = prodRes.rows[0];
 
-      // Opsi A: Tolak penghapusan selama produk masih terlibat dalam pesanan aktif
+      // Tolak penghapusan selama produk masih terlibat dalam pesanan aktif
       const activeOrders = await findActiveOrdersByProduct(client, productId);
       if (activeOrders.length > 0) {
         throw new GuardError(
-          `Produk masih dalam proses transaksi. Selesaikan transaski terlebih dahulu.`,
+          `Produk masih dalam proses transaksi (${formatActiveOrderSummary(activeOrders)}). Selesaikan transaksi terlebih dahulu.`,
           400
         );
       }
 
-      // Jaga arsip pesanan selesai dan ulasan pembeli (reviews.product_id bersifat NOT NULL + CASCADE)
-      const completedCount = await countCompletedOrdersByProduct(client, productId);
-      if (completedCount > 0) {
-        throw new GuardError(
-          `Produk memiliki ${completedCount} riwayat pesanan selesai dan tidak dapat dihapus demi menjaga arsip ulasan.`,
-          400
-        );
-      }
-
-      await client.query(`DELETE FROM products WHERE id = $1`, [productId]);
+      // Soft Delete untuk menjaga riwayat pesanan selesai dan ulasan pembeli tetap aman
+      await client.query(
+        `UPDATE products SET is_deleted = TRUE, updated_at = NOW() WHERE id = $1`,
+        [productId]
+      );
+      await client.query(`DELETE FROM cart_items WHERE product_id = $1`, [productId]);
+      await client.query(`DELETE FROM wishlists WHERE product_id = $1`, [productId]);
       return product;
     });
 

@@ -36,6 +36,7 @@ export default async function AdminDashboardPage() {
       COUNT(*)::int AS total_products,
       COALESCE(SUM(stock), 0)::int AS total_stock
     FROM products
+    WHERE is_deleted = FALSE
   `);
   const productStats = productStatsRes.rows[0];
 

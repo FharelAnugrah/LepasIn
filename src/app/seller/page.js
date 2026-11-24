@@ -40,7 +40,7 @@ export default async function SellerDashboardPage() {
       (SELECT COUNT(*)::int FROM orders WHERE store_id = $1 AND status IN ('pending_payment', 'processing')) AS new_orders,
       (SELECT COALESCE(SUM(total_amount), 0)::int FROM orders WHERE store_id = $1 AND status = 'completed') AS total_earnings
      FROM products p
-     WHERE p.store_id = $1`,
+     WHERE p.store_id = $1 AND p.is_deleted = FALSE`,
     [store.id]
   );
   const stats = statsRes.rows[0];
@@ -60,7 +60,7 @@ export default async function SellerDashboardPage() {
             (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_url
      FROM products p
      JOIN categories c ON c.id = p.category_id
-     WHERE p.store_id = $1
+     WHERE p.store_id = $1 AND p.is_deleted = FALSE
      ORDER BY p.created_at DESC
      LIMIT 5`,
     [store.id]

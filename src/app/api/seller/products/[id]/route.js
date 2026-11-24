@@ -10,7 +10,6 @@ import {
 import {
   GuardError,
   findActiveOrdersByProduct,
-  countCompletedOrdersByProduct,
   formatActiveOrderSummary,
 } from '@/lib/order-guards';
 
@@ -77,12 +76,23 @@ const updateStockValidator = z
       message: 'Jumlah stok tidak boleh diawali dengan angka 0 (contoh: 05).',
     }
   )
+  .refine(
+    (val) => {
+      if (val === undefined || val === null || val === '') return true;
+      const str = String(val).trim();
+      return /^-?\d+$/.test(str);
+    },
+    {
+      message: 'Jumlah stok harus berupa angka bulat tanpa titik atau koma.',
+    }
+  )
   .transform((val) => (val === undefined || val === null || val === '' ? undefined : Number(val)))
   .pipe(
     z
-      .number({ invalid_type_error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).' })
-      .int('Jumlah stok minimal 1 buah (angka bulat non-negatif).')
-      .min(0, 'Jumlah stok minimal 1 buah (angka bulat non-negatif).')
+      .number({ invalid_type_error: 'Jumlah stok harus berupa angka bulat tanpa titik atau koma.' })
+      .int('Jumlah stok harus berupa angka bulat tanpa titik atau koma.')
+      .min(0, 'Jumlah stok minimal 0 buah (angka bulat non-negatif).')
+      .max(10000, 'Jumlah stok maksimal 10.000.')
       .optional()
   );
 
@@ -136,7 +146,7 @@ export async function GET(request, { params }) {
               c.name AS category_name
        FROM products p
        JOIN categories c ON c.id = p.category_id
-       WHERE p.id = $1 AND p.store_id = $2`,
+       WHERE p.id = $1 AND p.store_id = $2 AND p.is_deleted = FALSE`,
       [productId, store.id]
     );
 
@@ -175,7 +185,7 @@ export async function PATCH(request, { params }) {
 
     // Cek produk milik toko
     const checkRes = await query(
-      'SELECT id, price, original_price FROM products WHERE id = $1 AND store_id = $2',
+      'SELECT id, price, original_price FROM products WHERE id = $1 AND store_id = $2 AND is_deleted = FALSE',
       [productId, store.id]
     );
     if (checkRes.rows.length === 0) {
@@ -282,7 +292,7 @@ export async function PATCH(request, { params }) {
         values.push(productId);
         values.push(store.id);
         await client.query(
-          `UPDATE products SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${idx++} AND store_id = $${idx++}`,
+          `UPDATE products SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${idx++} AND store_id = $${idx++} AND is_deleted = FALSE`,
           values
         );
       }
@@ -326,7 +336,7 @@ export async function DELETE(request, { params }) {
       if (!store) throw new GuardError('Toko tidak ditemukan', 404);
 
       const prodRes = await client.query(
-        `SELECT id, name FROM products WHERE id = $1 AND store_id = $2 FOR UPDATE`,
+        `SELECT id, name FROM products WHERE id = $1 AND store_id = $2 AND is_deleted = FALSE FOR UPDATE`,
         [productId, store.id]
       );
 
@@ -345,19 +355,13 @@ export async function DELETE(request, { params }) {
         );
       }
 
-      // Cek apakah barang memiliki riwayat transaksi selesai
-      const completedCount = await countCompletedOrdersByProduct(client, productId);
-      if (completedCount > 0) {
-        throw new GuardError(
-          `Barang memiliki ${completedCount} riwayat pesanan selesai dan tidak dapat dihapus demi menjaga ulasan pembeli.`,
-          400
-        );
-      }
-
+      // Soft Delete: barang hilang dari etalase & katalog, namun arsip pesanan selesai dan ulasan pembeli tetap aman
       await client.query(
-        `DELETE FROM products WHERE id = $1 AND store_id = $2`,
+        `UPDATE products SET is_deleted = TRUE, updated_at = NOW() WHERE id = $1 AND store_id = $2`,
         [productId, store.id]
       );
+      await client.query(`DELETE FROM cart_items WHERE product_id = $1`, [productId]);
+      await client.query(`DELETE FROM wishlists WHERE product_id = $1`, [productId]);
 
       return product;
     });

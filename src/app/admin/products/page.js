@@ -17,6 +17,12 @@ export default async function AdminProductsPage() {
            s.id AS store_id, s.name AS store_name,
            u.seller_status,
            cp.name AS campus_name, cp.short_name AS campus_short_name, cp.city AS campus_city,
+           (SELECT COUNT(*)::int FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id
+            WHERE oi.product_id = p.id AND o.status IN ('pending_payment', 'processing', 'shipped')) AS active_orders_count,
+           (SELECT COUNT(*)::int FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id
+            WHERE oi.product_id = p.id AND o.status = 'completed') AS completed_orders_count,
            (SELECT pi.url FROM product_images pi
             WHERE pi.product_id = p.id
             ORDER BY pi.position ASC, pi.id ASC LIMIT 1) AS image_url,
@@ -31,6 +37,7 @@ export default async function AdminProductsPage() {
     JOIN stores s ON s.id = p.store_id
     JOIN users u ON u.id = s.user_id
     JOIN campuses cp ON cp.id = s.campus_id
+    WHERE p.is_deleted = FALSE
     ORDER BY p.created_at DESC
   `);
 

@@ -38,7 +38,7 @@ export default async function SellerProductsPage() {
              WHERE oi.product_id = p.id AND o.status = 'completed') AS completed_orders_count
      FROM products p
      JOIN categories c ON c.id = p.category_id
-     WHERE p.store_id = $1
+     WHERE p.store_id = $1 AND p.is_deleted = FALSE
      ORDER BY p.created_at DESC`,
     [store.id]
   );

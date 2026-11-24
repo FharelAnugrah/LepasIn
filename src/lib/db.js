@@ -24,6 +24,12 @@ async function ensureMigration() {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS was_approved BOOLEAN DEFAULT FALSE');
     await pool.query("UPDATE users SET was_approved = TRUE WHERE seller_status = 'approved' AND was_approved IS NOT TRUE");
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS id_card_url TEXT');
+    try {
+      await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE');
+      await pool.query('CREATE INDEX IF NOT EXISTS products_is_deleted_idx ON products (is_deleted)');
+    } catch (prodColErr) {
+      console.warn('Migration products.is_deleted notice:', prodColErr.message);
+    }
 
     // Pastikan kolom gambar produk bertipe TEXT agar string Base64 Data URL tidak terpotong
     try {
@@ -104,6 +110,9 @@ export async function getClient() {
  * @returns {Promise<any>}
  */
 export async function withTransaction(callback) {
+  if (!isMigrationChecked) {
+    await ensureMigration();
+  }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
