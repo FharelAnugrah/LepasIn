@@ -10,7 +10,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { query } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, redirectRestrictedPublicRole } from '@/lib/auth';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import BottomNav from '@/components/layout/BottomNav';
@@ -44,6 +44,7 @@ export default async function StoreProfilePage({ params }) {
   }
 
   const user = await getCurrentUser();
+  redirectRestrictedPublicRole(user);
 
   const storeRes = await query(
     `SELECT s.id, s.name, s.description, s.location, s.image_url, s.created_at, s.user_id,
@@ -77,7 +78,7 @@ export default async function StoreProfilePage({ params }) {
      JOIN campuses cp ON cp.id = s.campus_id
      LEFT JOIN (SELECT product_id, ROUND(AVG(rating), 1)::float AS avg_rating, COUNT(*)::int AS review_count
                 FROM reviews GROUP BY product_id) r ON r.product_id = p.id
-     WHERE p.store_id = $1
+     WHERE p.store_id = $1 AND p.is_deleted = FALSE
      ORDER BY p.created_at DESC`,
     [storeId]
   );
@@ -96,7 +97,7 @@ export default async function StoreProfilePage({ params }) {
       `SELECT COALESCE(SUM(ci.quantity), 0)::int AS count, COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
-       WHERE ci.user_id = $1`,
+       WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
       [user.id]
     );
     cartCount = cartRes.rows[0]?.count || 0;
@@ -105,7 +106,7 @@ export default async function StoreProfilePage({ params }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas text-ink">
-      <Navbar user={user} cartCount={cartCount} showSearchBar={true} />
+      <Navbar user={user} cartCount={cartCount} showSearchBar={true} showCampusSelector={false} />
 
       <main
         id="main-content"

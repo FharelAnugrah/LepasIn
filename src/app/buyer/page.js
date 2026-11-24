@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Dashboard Pembeli | LepasIn',
-  description: 'Ringkasan pesanan, keranjang, favorit, dan alamat kost akun pembeli LepasIn.',
+  description: 'Ringkasan pesanan, keranjang, favorit, dan alamat akun pembeli LepasIn.',
 };
 
 export default async function BuyerOverviewPage() {
@@ -28,14 +28,14 @@ export default async function BuyerOverviewPage() {
       `SELECT COALESCE(SUM(ci.quantity), 0)::int AS count, COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
-       WHERE ci.user_id = $1`,
+       WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
       [buyer.id]
     ),
     query(
       `SELECT
          (SELECT COUNT(*)::int FROM orders WHERE buyer_id = $1 AND status IN ('pending_payment', 'processing', 'shipped')) AS active_orders,
          (SELECT COUNT(*)::int FROM orders WHERE buyer_id = $1 AND status = 'completed') AS completed_orders,
-         (SELECT COUNT(*)::int FROM wishlists WHERE user_id = $1) AS wishlist_count,
+         (SELECT COUNT(*)::int FROM wishlists w JOIN products p ON p.id = w.product_id WHERE w.user_id = $1 AND p.is_deleted = FALSE) AS wishlist_count,
          (SELECT COUNT(*)::int FROM addresses WHERE user_id = $1) AS address_count`,
       [buyer.id]
     ),
@@ -68,7 +68,7 @@ export default async function BuyerOverviewPage() {
               Halo, {buyer.name}
             </h1>
             <p className="text-sm text-ink-muted mt-1 flex flex-wrap items-center gap-2">
-              <span>Pantau pesanan aktif, barang favorit, dan alamat kostmu di sini.</span>
+              <span>Pantau pesanan aktif, barang favorit, dan alamatmu di sini.</span>
               {buyer.campus_short_name && (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-brand-blue-soft text-brand-blue">
                   <GraduationCap className="w-3.5 h-3.5" aria-hidden="true" />
@@ -205,10 +205,10 @@ export default async function BuyerOverviewPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-ink">
-                Alamat Kost Tersimpan ({stats.address_count})
+                Alamat Tersimpan ({stats.address_count})
               </p>
               <p className="text-xs text-ink-muted">
-                Kelola alamat kost atau rumah untuk mempercepat checkout pengiriman.
+                Kelola alamat untuk mempercepat checkout pengiriman.
               </p>
             </div>
           </div>

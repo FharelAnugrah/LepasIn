@@ -23,7 +23,7 @@ export async function POST(request) {
        FROM products p
        JOIN stores s ON s.id = p.store_id
        JOIN users u ON u.id = s.user_id
-       WHERE p.id = $1`,
+       WHERE p.id = $1 AND p.is_deleted = FALSE`,
       [productId]
     );
 

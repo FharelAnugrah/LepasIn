@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { query } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, redirectRestrictedPublicRole } from '@/lib/auth';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import BottomNav from '@/components/layout/BottomNav';
@@ -14,7 +14,7 @@ export async function generateMetadata({ params }) {
   if (!productId) return { title: 'Produk Tidak Ditemukan | LepasIn' };
 
   try {
-    const res = await query(`SELECT name FROM products WHERE id = $1`, [productId]);
+    const res = await query(`SELECT name FROM products WHERE id = $1 AND is_deleted = FALSE`, [productId]);
     if (res.rows.length === 0) return { title: 'Produk Tidak Ditemukan | LepasIn' };
     return {
       title: `${res.rows[0].name} | LepasIn`,
@@ -34,6 +34,7 @@ export default async function ProductDetailPage({ params }) {
   }
 
   const user = await getCurrentUser();
+  redirectRestrictedPublicRole(user);
 
   const productRes = await query(
     `SELECT p.id, p.name, p.description, p.price, p.original_price, p.stock, p.condition, p.created_at,
@@ -51,7 +52,7 @@ export default async function ProductDetailPage({ params }) {
      JOIN users u ON u.id = s.user_id AND u.seller_status = 'approved'
      LEFT JOIN (SELECT product_id, ROUND(AVG(rating), 1)::float AS avg_rating, COUNT(*)::int AS review_count
                 FROM reviews GROUP BY product_id) r ON r.product_id = p.id
-     WHERE p.id = $1`,
+     WHERE p.id = $1 AND p.is_deleted = FALSE`,
     [productId]
   );
 
@@ -91,7 +92,7 @@ export default async function ProductDetailPage({ params }) {
       `SELECT COALESCE(SUM(ci.quantity), 0)::int AS count, COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
-       WHERE ci.user_id = $1`,
+       WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
       [user.id]
     );
     cartCount = cartRes.rows[0]?.count || 0;
@@ -100,7 +101,7 @@ export default async function ProductDetailPage({ params }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas text-ink">
-      <Navbar user={user} cartCount={cartCount} showSearchBar={true} />
+      <Navbar user={user} cartCount={cartCount} showSearchBar={true} showCampusSelector={false} />
 
       <main
         id="main-content"

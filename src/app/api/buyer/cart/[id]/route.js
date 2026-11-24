@@ -24,7 +24,7 @@ export async function PATCH(request, { params }) {
        JOIN products p ON p.id = ci.product_id
        JOIN stores s ON s.id = p.store_id
        JOIN users u ON u.id = s.user_id
-       WHERE ci.id = $1 AND ci.user_id = $2`,
+       WHERE ci.id = $1 AND ci.user_id = $2 AND p.is_deleted = FALSE`,
       [cartItemId, user.id]
     );
 
@@ -41,7 +41,7 @@ export async function PATCH(request, { params }) {
                 COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
          FROM cart_items ci
          JOIN products p ON p.id = ci.product_id
-         WHERE ci.user_id = $1`,
+         WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
         [user.id]
       );
 
@@ -80,7 +80,7 @@ export async function PATCH(request, { params }) {
               COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
-       WHERE ci.user_id = $1`,
+       WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
       [user.id]
     );
 
@@ -120,7 +120,7 @@ export async function DELETE(request, { params }) {
               COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
-       WHERE ci.user_id = $1`,
+       WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
       [user.id]
     );
 

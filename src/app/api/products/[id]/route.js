@@ -26,7 +26,7 @@ export async function GET(request, { params }) {
        JOIN users u ON u.id = s.user_id AND u.seller_status = 'approved'
        LEFT JOIN (SELECT product_id, ROUND(AVG(rating), 1)::float AS avg_rating, COUNT(*)::int AS review_count
                   FROM reviews GROUP BY product_id) r ON r.product_id = p.id
-       WHERE p.id = $1`,
+       WHERE p.id = $1 AND p.is_deleted = FALSE`,
       [productId]
     );
 

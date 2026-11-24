@@ -1,6 +1,8 @@
 import { requireBuyer } from '@/lib/auth';
 import { query } from '@/lib/db';
-import BuyerDashboardShell from '@/components/layout/BuyerDashboardShell';
+import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer';
+import BottomNav from '@/components/layout/BottomNav';
 import WishlistManager from './WishlistManager';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +29,7 @@ export default async function WishlistPage() {
      JOIN campuses cp ON cp.id = s.campus_id
      LEFT JOIN (SELECT product_id, ROUND(AVG(rating), 1)::float AS avg_rating, COUNT(*)::int AS review_count
                 FROM reviews GROUP BY product_id) r ON r.product_id = p.id
-     WHERE w.user_id = $1
+     WHERE w.user_id = $1 AND p.is_deleted = FALSE
      ORDER BY w.created_at DESC`,
     [buyer.id]
   );
@@ -38,15 +40,31 @@ export default async function WishlistPage() {
     `SELECT COALESCE(SUM(ci.quantity), 0)::int AS count, COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
      FROM cart_items ci
      JOIN products p ON p.id = ci.product_id
-     WHERE ci.user_id = $1`,
+     WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
     [buyer.id]
   );
   const cartCount = cartRes.rows[0]?.count || 0;
   const cartTotal = cartRes.rows[0]?.total || 0;
 
   return (
-    <BuyerDashboardShell user={buyer} cartCount={cartCount} cartTotal={cartTotal}>
-      <WishlistManager initialProducts={products} user={buyer} />
-    </BuyerDashboardShell>
+    <div className="min-h-screen flex flex-col bg-canvas text-ink">
+      <Navbar
+        user={buyer}
+        cartCount={cartCount}
+        showSearchBar={false}
+        showCampusSelector={false}
+      />
+
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7 outline-none"
+      >
+        <WishlistManager initialProducts={products} user={buyer} />
+      </main>
+
+      <Footer />
+      <BottomNav user={buyer} cartCount={cartCount} cartTotal={cartTotal} />
+    </div>
   );
 }

@@ -28,7 +28,7 @@ export async function POST(request) {
        FROM products p
        JOIN stores s ON s.id = p.store_id
        JOIN users u ON u.id = s.user_id
-       WHERE p.id = $1`,
+       WHERE p.id = $1 AND p.is_deleted = FALSE`,
       [productId]
     );
 
@@ -96,7 +96,7 @@ export async function POST(request) {
               COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
-       WHERE ci.user_id = $1`,
+       WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
       [user.id]
     );
 
@@ -139,7 +139,7 @@ export async function GET() {
        JOIN stores s ON s.id = p.store_id
        JOIN users u ON u.id = s.user_id
        JOIN campuses cp ON cp.id = s.campus_id
-       WHERE ci.user_id = $1
+       WHERE ci.user_id = $1 AND p.is_deleted = FALSE
        ORDER BY s.id, ci.created_at DESC`,
       [user.id]
     );

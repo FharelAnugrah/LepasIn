@@ -158,7 +158,7 @@ async function loadUnifiedRoom({
       `SELECT p.id, p.name, p.price, p.stock, p.condition,
               (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_url
        FROM products p
-       WHERE p.id = $1 AND p.store_id = $2`,
+       WHERE p.id = $1 AND p.store_id = $2 AND p.is_deleted = FALSE`,
       [targetProductId, storeId]
     );
     if (prodRes.rows.length > 0) {
@@ -210,6 +210,12 @@ export async function GET(request) {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Silakan login terlebih dahulu' }, { status: 401 });
+    }
+    if (user.role === 'admin') {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+    }
+    if (user.role === 'seller' && user.seller_status !== 'approved') {
+      return NextResponse.json({ error: 'Akun penjual belum aktif' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -395,6 +401,12 @@ export async function POST(request) {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Silakan login terlebih dahulu' }, { status: 401 });
+    }
+    if (user.role === 'admin') {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+    }
+    if (user.role === 'seller' && user.seller_status !== 'approved') {
+      return NextResponse.json({ error: 'Akun penjual belum aktif' }, { status: 403 });
     }
 
     const body = await request.json();

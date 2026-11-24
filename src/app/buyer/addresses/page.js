@@ -26,7 +26,7 @@ export default async function BuyerAddressesPage() {
     `SELECT COALESCE(SUM(ci.quantity), 0)::int AS count, COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
      FROM cart_items ci
      JOIN products p ON p.id = ci.product_id
-     WHERE ci.user_id = $1`,
+     WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
     [buyer.id]
   );
   const cartCount = cartRes.rows[0]?.count || 0;

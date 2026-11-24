@@ -27,6 +27,7 @@ export async function GET(request) {
        WHERE (p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
          AND ($2::int IS NULL OR s.campus_id = $2)
          AND p.stock > 0
+         AND p.is_deleted = FALSE
        ORDER BY p.created_at DESC
        LIMIT 5`,
       [q, campusId]
@@ -36,7 +37,7 @@ export async function GET(request) {
     const storesRes = await query(
       `SELECT s.id, s.name, s.location, s.image_url,
               cp.short_name AS campus_short_name,
-              (SELECT COUNT(*)::int FROM products p WHERE p.store_id = s.id AND p.stock > 0) AS products_count
+              (SELECT COUNT(*)::int FROM products p WHERE p.store_id = s.id AND p.stock > 0 AND p.is_deleted = FALSE) AS products_count
        FROM stores s
        JOIN users u ON u.id = s.user_id AND u.seller_status = 'approved'
        JOIN campuses cp ON cp.id = s.campus_id
