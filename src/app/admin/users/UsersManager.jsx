@@ -10,11 +10,48 @@ import {
   Store,
   ShoppingBag,
   GraduationCap,
+  AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+
+function UserRowActions({ user, isCurrentAdmin, onDelete }) {
+  if (isCurrentAdmin) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-ink-muted bg-surface-muted border border-border-subtle select-none">
+        <Lock className="w-3.5 h-3.5 text-brand-blue shrink-0" aria-hidden="true" />
+        <span>Akun Terproteksi</span>
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <Button
+        href={`/admin/users/${user.id}/edit`}
+        variant="secondary"
+        size="sm"
+        icon={Edit2}
+        title="Edit pengguna"
+      >
+        Edit
+      </Button>
+      <Button
+        variant="danger"
+        size="sm"
+        icon={Trash2}
+        onClick={() => onDelete(user)}
+        title="Hapus pengguna"
+      >
+        Hapus
+      </Button>
+    </>
+  );
+}
 
 export default function UsersManager({ initialUsers, currentAdminId }) {
   const router = useRouter();
@@ -28,6 +65,11 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
     isOpen: false,
     user: null,
     loading: false,
+  });
+
+  const [blockedDialog, setBlockedDialog] = useState({
+    isOpen: false,
+    user: null,
   });
 
   const filteredUsers = users.filter((u) => {
@@ -50,6 +92,17 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
       toast.warning('Anda tidak dapat menghapus akun Anda sendiri.');
       return;
     }
+
+    const activeBuyerCount = u.active_buyer_orders_count || 0;
+    const activeSellerCount = u.active_seller_orders_count || 0;
+    if (activeBuyerCount + activeSellerCount > 0) {
+      setBlockedDialog({
+        isOpen: true,
+        user: u,
+      });
+      return;
+    }
+
     setDeleteDialog({
       isOpen: true,
       user: u,
@@ -70,6 +123,19 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code === 'ACTIVE_ORDERS') {
+          const updatedUser = {
+            ...target,
+            active_buyer_orders_count:
+              data.active_buyer_orders_count ?? target.active_buyer_orders_count ?? 0,
+            active_seller_orders_count:
+              data.active_seller_orders_count ?? target.active_seller_orders_count ?? 0,
+          };
+          setUsers((prev) => prev.map((item) => (item.id === target.id ? updatedUser : item)));
+          setDeleteDialog({ isOpen: false, user: null, loading: false });
+          setBlockedDialog({ isOpen: true, user: updatedUser });
+          return;
+        }
         toast.error(data.error || 'Gagal menghapus pengguna');
         setDeleteDialog({ isOpen: false, user: null, loading: false });
         return;
@@ -214,26 +280,11 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-1">
-                    <Button
-                      href={isCurrentAdmin ? undefined : `/admin/users/${u.id}/edit`}
-                      variant="secondary"
-                      size="sm"
-                      icon={Edit2}
-                      disabled={isCurrentAdmin}
-                      title={isCurrentAdmin ? 'Tidak dapat mengedit akun sendiri' : 'Edit pengguna'}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      icon={Trash2}
-                      onClick={() => handleOpenDelete(u)}
-                      disabled={isCurrentAdmin}
-                      title={isCurrentAdmin ? 'Tidak dapat menghapus akun sendiri' : 'Hapus pengguna'}
-                    >
-                      Hapus
-                    </Button>
+                    <UserRowActions
+                      user={u}
+                      isCurrentAdmin={isCurrentAdmin}
+                      onDelete={handleOpenDelete}
+                    />
                   </div>
                 </div>
               );
@@ -313,26 +364,11 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
                       </td>
                       <td className="py-3.5 px-3 xl:px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                          <Button
-                            href={isCurrentAdmin ? undefined : `/admin/users/${u.id}/edit`}
-                            variant="secondary"
-                            size="sm"
-                            icon={Edit2}
-                            disabled={isCurrentAdmin}
-                            title={isCurrentAdmin ? 'Tidak dapat mengedit akun sendiri' : 'Edit pengguna'}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            icon={Trash2}
-                            onClick={() => handleOpenDelete(u)}
-                            disabled={isCurrentAdmin}
-                            title={isCurrentAdmin ? 'Tidak dapat menghapus akun sendiri' : 'Hapus pengguna'}
-                          >
-                            Hapus
-                          </Button>
+                          <UserRowActions
+                            user={u}
+                            isCurrentAdmin={isCurrentAdmin}
+                            onDelete={handleOpenDelete}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -355,6 +391,83 @@ export default function UsersManager({ initialUsers, currentAdminId }) {
         confirmVariant="danger"
         type="danger"
       />
+
+      {/* Modal Peringatan: Akun Masih Memiliki Pesanan Aktif */}
+      <Modal
+        isOpen={blockedDialog.isOpen}
+        onClose={() => setBlockedDialog({ isOpen: false, user: null })}
+        maxWidth="max-w-md"
+      >
+        {blockedDialog.user &&
+          (() => {
+            const target = blockedDialog.user;
+            const buyerOrders = target.active_buyer_orders_count || 0;
+            const sellerOrders = target.active_seller_orders_count || 0;
+            const totalActive = buyerOrders + sellerOrders;
+            const hasBothOrderTypes = buyerOrders > 0 && sellerOrders > 0;
+            const showBuyerCard = hasBothOrderTypes || (target.role !== 'seller' && sellerOrders === 0);
+            const showSellerCard = hasBothOrderTypes || target.role === 'seller' || sellerOrders > 0;
+
+            return (
+              <div className="flex flex-col items-center text-center p-1 sm:p-2">
+                <div className="w-13 h-13 rounded-2xl flex items-center justify-center mb-4 bg-warning-bg border border-amber-200 text-warning-text shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_3px_0_rgba(15,41,74,0.12)]">
+                  <AlertTriangle className="w-6 h-6" aria-hidden="true" />
+                </div>
+
+                <h3 className="text-lg font-bold text-ink mb-2">
+                  Akun Pengguna Tidak Dapat Dihapus
+                </h3>
+
+                <p className="text-sm text-ink-secondary mb-4 leading-relaxed">
+                  Akun <strong className="text-ink">&quot;{target.name}&quot;</strong> ({target.email}) saat ini masih memiliki{' '}
+                  <strong className="text-warning-text">
+                    {totalActive} pesanan aktif
+                  </strong>
+                  :
+                </p>
+
+                <div
+                  className={`grid ${hasBothOrderTypes ? 'grid-cols-2' : 'grid-cols-1'} gap-3 w-full mb-4`}
+                >
+                  {showBuyerCard && (
+                    <div className="surface-3d rounded-xl p-3 flex flex-col items-center justify-center text-center">
+                      <span className="text-xs text-ink-muted flex items-center gap-1.5 mb-1">
+                        <ShoppingBag className="w-3.5 h-3.5 text-brand-blue" aria-hidden="true" />
+                        <span>Pesanan Pembelian</span>
+                      </span>
+                      <span className="text-base font-extrabold text-ink tabular-nums">
+                        {buyerOrders} Pesanan
+                      </span>
+                    </div>
+                  )}
+                  {showSellerCard && (
+                    <div className="surface-3d rounded-xl p-3 flex flex-col items-center justify-center text-center">
+                      <span className="text-xs text-ink-muted flex items-center gap-1.5 mb-1">
+                        <Store className="w-3.5 h-3.5 text-navy-900" aria-hidden="true" />
+                        <span>Pesanan Lapak</span>
+                      </span>
+                      <span className="text-base font-extrabold text-ink tabular-nums">
+                        {sellerOrders} Pesanan
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-xs text-ink-muted bg-surface-muted border border-border-subtle rounded-xl p-3 mb-6 text-left leading-relaxed">
+                  Demi melindungi hak transaksi pembeli dan penjual serta kejelasan proses pengiriman atau COD, akun baru dapat dihapus setelah seluruh pesanan aktif berstatus selesai atau dibatalkan.
+                </p>
+
+                <Button
+                  variant="primary"
+                  className="w-full"
+                  onClick={() => setBlockedDialog({ isOpen: false, user: null })}
+                >
+                  Saya Mengerti
+                </Button>
+              </div>
+            );
+          })()}
+      </Modal>
     </div>
   );
 }

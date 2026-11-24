@@ -163,10 +163,18 @@ export async function DELETE(request, { params }) {
 
       const activeOrders = await findActiveOrdersByUserId(client, targetUserId);
       if (activeOrders.length > 0) {
-        throw new GuardError(
-          `Akun tidak dapat dihapus karena masih ada pesanan aktif.`,
+        const activeBuyerCount = activeOrders.filter((o) => o.involvement === 'buyer').length;
+        const activeSellerCount = activeOrders.filter((o) => o.involvement === 'seller').length;
+        const err = new GuardError(
+          `Akun tidak dapat dihapus karena masih ada ${formatActiveOrderSummary(activeOrders)}.`,
           400
         );
+        err.details = {
+          code: 'ACTIVE_ORDERS',
+          active_buyer_orders_count: activeBuyerCount,
+          active_seller_orders_count: activeSellerCount,
+        };
+        throw err;
       }
 
       const result = await client.query(
@@ -182,7 +190,10 @@ export async function DELETE(request, { params }) {
     });
   } catch (error) {
     if (error?.statusCode) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+      return NextResponse.json(
+        { error: error.message, ...(error.details || {}) },
+        { status: error.statusCode }
+      );
     }
     console.error('Delete user error:', error);
     return NextResponse.json({ error: 'Gagal menghapus pengguna' }, { status: 500 });

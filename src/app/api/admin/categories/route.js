@@ -85,7 +85,7 @@ export async function POST(request) {
       const allCatsRes = await client.query(`
         SELECT c.id, c.name, c.created_at, COUNT(p.id)::int AS product_count
         FROM categories c
-        LEFT JOIN products p ON p.category_id = c.id
+        LEFT JOIN products p ON p.category_id = c.id AND p.is_deleted = FALSE
         GROUP BY c.id
         ORDER BY 
           CASE 

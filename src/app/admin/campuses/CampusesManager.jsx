@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit2, Trash2, GraduationCap, Search, Store, Users } from 'lucide-react';
+import { Plus, Edit2, Trash2, GraduationCap, Search, Store, Users, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -39,6 +39,11 @@ export default function CampusesManager({ initialCampuses }) {
     isOpen: false,
     campus: null,
     loading: false,
+  });
+
+  const [blockedDialog, setBlockedDialog] = useState({
+    isOpen: false,
+    campus: null,
   });
 
   const filteredCampuses = campuses.filter((c) => {
@@ -175,9 +180,10 @@ export default function CampusesManager({ initialCampuses }) {
 
   const handleOpenDelete = (campus) => {
     if (campus.user_count > 0 || campus.store_count > 0) {
-      toast.warning(
-        `Kampus ${campus.short_name} masih terhubung dengan ${campus.user_count} pengguna dan ${campus.store_count} toko.`
-      );
+      setBlockedDialog({
+        isOpen: true,
+        campus,
+      });
       return;
     }
     setDeleteDialog({
@@ -300,12 +306,7 @@ export default function CampusesManager({ initialCampuses }) {
                       size="sm"
                       icon={Trash2}
                       onClick={() => handleOpenDelete(c)}
-                      disabled={c.user_count > 0 || c.store_count > 0}
-                      title={
-                        c.user_count > 0 || c.store_count > 0
-                          ? 'Tidak bisa dihapus karena masih ada pengguna/toko di kampus ini'
-                          : 'Hapus kampus'
-                      }
+                      title="Hapus kampus"
                     >
                       Hapus
                     </Button>
@@ -383,12 +384,7 @@ export default function CampusesManager({ initialCampuses }) {
                           size="sm"
                           icon={Trash2}
                           onClick={() => handleOpenDelete(c)}
-                          disabled={c.user_count > 0 || c.store_count > 0}
-                          title={
-                            c.user_count > 0 || c.store_count > 0
-                              ? 'Tidak bisa dihapus karena masih ada pengguna/toko di kampus ini'
-                              : 'Hapus kampus'
-                          }
+                          title="Hapus kampus"
                         >
                           Hapus
                         </Button>
@@ -595,11 +591,65 @@ export default function CampusesManager({ initialCampuses }) {
         onConfirm={handleConfirmDelete}
         loading={deleteDialog.loading}
         title="Hapus Perguruan Tinggi?"
-        message={`Apakah Anda yakin ingin menghapus "${deleteDialog.campus?.name}" (${deleteDialog.campus?.short_name}) dari sistem LepasIn?`}
+        message={`Apakah Anda yakin ingin menghapus "${deleteDialog.campus?.name}" (${deleteDialog.campus?.short_name}) dari sistem LepasIn? Kampus ini tidak memiliki pengguna atau toko terdaftar.`}
         confirmText="Ya, Hapus Kampus"
         confirmVariant="danger"
         type="danger"
       />
+
+      {/* Modal Peringatan Proteksi Komunitas Kampus */}
+      <Modal
+        isOpen={blockedDialog.isOpen}
+        onClose={() => setBlockedDialog({ isOpen: false, campus: null })}
+        maxWidth="max-w-md"
+      >
+        <div className="flex flex-col items-center text-center p-1 sm:p-2">
+          <div className="w-13 h-13 rounded-2xl flex items-center justify-center mb-4 bg-warning-bg border border-amber-200 text-warning-text shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_3px_0_rgba(15,41,74,0.12)]">
+            <AlertTriangle className="w-6 h-6" aria-hidden="true" />
+          </div>
+
+          <h3 className="text-lg font-bold text-ink mb-2">
+            Perguruan Tinggi Tidak Dapat Dihapus
+          </h3>
+
+          <p className="text-sm text-ink-secondary mb-4 leading-relaxed">
+            Kampus <strong className="text-ink">{blockedDialog.campus?.name} ({blockedDialog.campus?.short_name})</strong> saat ini masih memiliki komunitas aktif:
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 w-full mb-4">
+            <div className="surface-3d rounded-xl p-3 flex flex-col items-center justify-center text-center">
+              <span className="text-xs text-ink-muted flex items-center gap-1.5 mb-1">
+                <Users className="w-3.5 h-3.5 text-brand-blue" aria-hidden="true" />
+                Mahasiswa Terdaftar
+              </span>
+              <span className="text-base font-extrabold text-ink tabular-nums">
+                {blockedDialog.campus?.user_count || 0} Akun
+              </span>
+            </div>
+            <div className="surface-3d rounded-xl p-3 flex flex-col items-center justify-center text-center">
+              <span className="text-xs text-ink-muted flex items-center gap-1.5 mb-1">
+                <Store className="w-3.5 h-3.5 text-navy-900" aria-hidden="true" />
+                Toko Mahasiswa
+              </span>
+              <span className="text-base font-extrabold text-ink tabular-nums">
+                {blockedDialog.campus?.store_count || 0} Toko
+              </span>
+            </div>
+          </div>
+
+          <p className="text-xs text-ink-muted bg-surface-muted border border-border-subtle rounded-xl p-3 mb-6 text-left leading-relaxed">
+            Demi menjaga keutuhan data profil mahasiswa, lapak toko, serta riwayat transaksi jual-beli di kampus ini, sistem memproteksi perguruan tinggi dari penghapusan selama komunitasnya masih terdaftar.
+          </p>
+
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={() => setBlockedDialog({ isOpen: false, campus: null })}
+          >
+            Saya Mengerti
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

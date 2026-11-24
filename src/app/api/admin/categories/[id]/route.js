@@ -61,7 +61,7 @@ export async function PATCH(request, { params }) {
     const allCatsRes = await query(`
       SELECT c.id, c.name, c.created_at, COUNT(p.id)::int AS product_count
       FROM categories c
-      LEFT JOIN products p ON p.category_id = c.id
+      LEFT JOIN products p ON p.category_id = c.id AND p.is_deleted = FALSE
       GROUP BY c.id
       ORDER BY 
         CASE 
@@ -93,6 +93,10 @@ export async function DELETE(request, { params }) {
     const { id } = await params;
     const categoryId = Number(id);
 
+    if (!categoryId) {
+      return NextResponse.json({ error: 'ID kategori tidak valid' }, { status: 400 });
+    }
+
     // Cek keberadaan kategori
     const catCheck = await query(`SELECT id, name FROM categories WHERE id = $1`, [categoryId]);
     if (catCheck.rows.length === 0) {
@@ -107,50 +111,57 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Cek apakah masih digunakan oleh produk (ADM-5: tolak hapus jika masih dipakai produk)
-    const productCheck = await query(
-      `SELECT COUNT(*)::int AS count FROM products WHERE category_id = $1`,
-      [categoryId]
-    );
-
-    const count = productCheck.rows[0]?.count || 0;
-    if (count > 0) {
-      return NextResponse.json(
-        {
-          error: `Kategori tidak dapat dihapus karena masih digunakan oleh ${count} produk. Pindahkan atau hapus produk terlebih dahulu.`,
-        },
-        { status: 400 }
-      );
-    }
-
     const client = await getClient();
     try {
       await client.query('BEGIN');
 
+      // 1. Ambil ID kategori fallback "Lainnya" (sistem)
+      const lainnyaRes = await client.query(
+        `SELECT id, name FROM categories WHERE LOWER(name) IN ('lainnya', 'lain-lain') FOR UPDATE`
+      );
+
+      if (lainnyaRes.rows.length === 0) {
+        throw new Error('Kategori sistem "Lainnya" tidak ditemukan untuk menampung relokasi produk.');
+      }
+
+      const fallbackCategoryId = Number(lainnyaRes.rows[0].id);
+
+      // 2. Cek jumlah produk aktif (tidak terhapus) yang saat ini berada di kategori yang akan dihapus
+      const productCheck = await client.query(
+        `SELECT COUNT(*)::int AS count FROM products WHERE category_id = $1 AND is_deleted = FALSE`,
+        [categoryId]
+      );
+      const reallocatedCount = productCheck.rows[0]?.count || 0;
+
+      // 3. Pindahkan seluruh produk (termasuk arsip terhapus) ke kategori "Lainnya" agar foreign key tetap aman
+      await client.query(
+        `UPDATE products SET category_id = $1 WHERE category_id = $2`,
+        [fallbackCategoryId, categoryId]
+      );
+
+      // 4. Hapus kategori sasaran
       const result = await client.query(
         `DELETE FROM categories WHERE id = $1 RETURNING id, name`,
         [categoryId]
       );
 
-      // Cek kategori Lainnya: pastikan ID-nya tetap nomor terakhir (dirapatkan jika ada gap)
-      const lainnyaRes = await client.query(
+      // 5. Cek kategori Lainnya: pastikan ID-nya tetap nomor terakhir (dirapatkan jika ada gap)
+      const maxOtherRes = await client.query(
+        `SELECT COALESCE(MAX(id), 0) AS max_id FROM categories WHERE LOWER(name) NOT IN ('lainnya', 'lain-lain')`
+      );
+      const maxOtherId = Number(maxOtherRes.rows[0].max_id);
+      const targetLainnyaId = maxOtherId + 1;
+
+      // Ambil data Lainnya saat ini
+      const currentLainnyaRes = await client.query(
         `SELECT id, name FROM categories WHERE LOWER(name) IN ('lainnya', 'lain-lain') FOR UPDATE`
       );
 
-      if (lainnyaRes.rows.length > 0) {
-        const lainnya = lainnyaRes.rows[0];
-        const oldLainnyaId = Number(lainnya.id);
-
-        const maxOtherRes = await client.query(
-          `SELECT COALESCE(MAX(id), 0) AS max_id FROM categories WHERE id <> $1`,
-          [oldLainnyaId]
-        );
-        const maxOtherId = Number(maxOtherRes.rows[0].max_id);
-        const targetLainnyaId = maxOtherId + 1;
-
-        if (oldLainnyaId !== targetLainnyaId) {
-          // Pindahkan Lainnya sementara ke 999999 lalu ke targetLainnyaId
-          await client.query(`UPDATE categories SET id = 999999 WHERE id = $1`, [oldLainnyaId]);
+      if (currentLainnyaRes.rows.length > 0) {
+        const currentLainnyaId = Number(currentLainnyaRes.rows[0].id);
+        if (currentLainnyaId !== targetLainnyaId) {
+          // Pindahkan Lainnya sementara ke 999999 lalu ke targetLainnyaId (ON UPDATE CASCADE akan memperbarui products.category_id secara otomatis)
+          await client.query(`UPDATE categories SET id = 999999 WHERE id = $1`, [currentLainnyaId]);
           await client.query(`UPDATE categories SET id = $1 WHERE id = 999999`, [targetLainnyaId]);
         }
 
@@ -160,11 +171,11 @@ export async function DELETE(request, { params }) {
         );
       }
 
-      // Ambil daftar seluruh kategori terbaru
+      // 6. Ambil daftar seluruh kategori terbaru beserta jumlah produk
       const allCatsRes = await client.query(`
         SELECT c.id, c.name, c.created_at, COUNT(p.id)::int AS product_count
         FROM categories c
-        LEFT JOIN products p ON p.category_id = c.id
+        LEFT JOIN products p ON p.category_id = c.id AND p.is_deleted = FALSE
         GROUP BY c.id
         ORDER BY 
           CASE 
@@ -176,11 +187,17 @@ export async function DELETE(request, { params }) {
 
       await client.query('COMMIT');
 
+      const message =
+        reallocatedCount > 0
+          ? `Kategori "${result.rows[0].name}" berhasil dihapus, dan ${reallocatedCount} produk dipindahkan ke kategori "Lainnya".`
+          : `Kategori "${result.rows[0].name}" berhasil dihapus.`;
+
       return NextResponse.json({
         success: true,
         category: result.rows[0],
         categories: allCatsRes.rows,
-        message: 'Kategori berhasil dihapus',
+        reallocatedCount,
+        message,
       });
     } catch (txError) {
       await client.query('ROLLBACK');
@@ -190,6 +207,9 @@ export async function DELETE(request, { params }) {
     }
   } catch (error) {
     console.error('Delete category error:', error);
-    return NextResponse.json({ error: 'Gagal menghapus kategori' }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || 'Gagal menghapus kategori' },
+      { status: 500 }
+    );
   }
 }

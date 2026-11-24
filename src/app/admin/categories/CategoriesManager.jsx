@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit2, Trash2, Tags, Package, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tags, Package, Search, Lock } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -43,6 +43,7 @@ export default function CategoriesManager({ initialCategories }) {
   const [deleteDialog, setDeleteDialog] = useState({
     isOpen: false,
     category: null,
+    productCount: 0,
     loading: false,
   });
 
@@ -150,21 +151,16 @@ export default function CategoriesManager({ initialCategories }) {
       toast.warning('Kategori "Lainnya" adalah kategori sistem dan tidak dapat dihapus.');
       return;
     }
-    if (category.product_count > 0) {
-      toast.warning(
-        `Kategori "${category.name}" masih digunakan oleh ${category.product_count} produk dan tidak boleh dihapus.`
-      );
-      return;
-    }
     setDeleteDialog({
       isOpen: true,
       category,
+      productCount: category.product_count || 0,
       loading: false,
     });
   };
 
   const handleConfirmDelete = async () => {
-    const { category } = deleteDialog;
+    const { category, productCount } = deleteDialog;
     if (!category) return;
 
     setDeleteDialog((prev) => ({ ...prev, loading: true }));
@@ -187,8 +183,15 @@ export default function CategoriesManager({ initialCategories }) {
       } else {
         setCategories((prev) => prev.filter((c) => c.id !== category.id));
       }
-      toast.success(`Kategori "${category.name}" berhasil dihapus`);
-      setDeleteDialog({ isOpen: false, category: null, loading: false });
+
+      const successMsg =
+        data.message ||
+        (productCount > 0
+          ? `Kategori "${category.name}" berhasil dihapus, dan ${productCount} produk dipindahkan ke "Lainnya"`
+          : `Kategori "${category.name}" berhasil dihapus`);
+      toast.success(successMsg);
+
+      setDeleteDialog({ isOpen: false, category: null, productCount: 0, loading: false });
       router.refresh();
     } catch (err) {
       console.error(err);
@@ -270,36 +273,33 @@ export default function CategoriesManager({ initialCategories }) {
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-1">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={Edit2}
-                      onClick={() => handleOpenEdit(c)}
-                      disabled={isSystemCategory}
-                      title={
-                        isSystemCategory
-                          ? 'Kategori sistem tidak dapat diubah'
-                          : 'Edit nama kategori'
-                      }
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      icon={Trash2}
-                      onClick={() => handleOpenDelete(c)}
-                      disabled={c.product_count > 0 || isSystemCategory}
-                      title={
-                        isSystemCategory
-                          ? 'Kategori sistem tidak dapat dihapus'
-                          : c.product_count > 0
-                          ? 'Tidak bisa dihapus karena masih ada produk di kategori ini'
-                          : 'Hapus kategori'
-                      }
-                    >
-                      Hapus
-                    </Button>
+                    {isSystemCategory ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-ink-muted bg-surface-muted border border-border-subtle select-none">
+                        <Lock className="w-3.5 h-3.5 text-brand-blue shrink-0" aria-hidden="true" />
+                        <span>Kategori Terproteksi</span>
+                      </span>
+                    ) : (
+                      <>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={Edit2}
+                          onClick={() => handleOpenEdit(c)}
+                          title="Edit nama kategori"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          icon={Trash2}
+                          onClick={() => handleOpenDelete(c)}
+                          title="Hapus kategori"
+                        >
+                          Hapus
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -357,36 +357,33 @@ export default function CategoriesManager({ initialCategories }) {
                       </td>
                       <td className="py-4 px-3 xl:px-5 text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            icon={Edit2}
-                            onClick={() => handleOpenEdit(c)}
-                            disabled={isSystemCategory}
-                            title={
-                              isSystemCategory
-                                ? 'Kategori sistem tidak dapat diubah'
-                                : 'Edit nama kategori'
-                            }
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            icon={Trash2}
-                            onClick={() => handleOpenDelete(c)}
-                            disabled={c.product_count > 0 || isSystemCategory}
-                            title={
-                              isSystemCategory
-                                ? 'Kategori sistem tidak dapat dihapus'
-                                : c.product_count > 0
-                                ? 'Tidak bisa dihapus karena masih ada produk di kategori ini'
-                                : 'Hapus kategori'
-                            }
-                          >
-                            Hapus
-                          </Button>
+                          {isSystemCategory ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-ink-muted bg-surface-muted border border-border-subtle select-none">
+                              <Lock className="w-3.5 h-3.5 text-brand-blue shrink-0" aria-hidden="true" />
+                              <span>Kategori Terproteksi</span>
+                            </span>
+                          ) : (
+                            <>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                icon={Edit2}
+                                onClick={() => handleOpenEdit(c)}
+                                title="Edit nama kategori"
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                icon={Trash2}
+                                onClick={() => handleOpenDelete(c)}
+                                title="Hapus kategori"
+                              >
+                                Hapus
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -457,14 +454,26 @@ export default function CategoriesManager({ initialCategories }) {
 
       <ConfirmDialog
         isOpen={deleteDialog.isOpen}
-        onClose={() => setDeleteDialog({ isOpen: false, category: null, loading: false })}
+        onClose={() => setDeleteDialog({ isOpen: false, category: null, productCount: 0, loading: false })}
         onConfirm={handleConfirmDelete}
         loading={deleteDialog.loading}
-        title="Hapus Kategori Produk?"
-        message={`Apakah Anda yakin ingin menghapus kategori "${deleteDialog.category?.name}"? Tindakan ini tidak dapat dibatalkan.`}
-        confirmText="Ya, Hapus Kategori"
+        title={
+          deleteDialog.productCount > 0
+            ? 'Hapus Kategori & Pindahkan Produk?'
+            : 'Hapus Kategori Produk?'
+        }
+        message={
+          deleteDialog.productCount > 0
+            ? `Kategori "${deleteDialog.category?.name}" saat ini menampung ${deleteDialog.productCount} produk aktif. Jika dihapus, seluruh produk tersebut akan otomatis dialihkan ke kategori "Lainnya" agar tetap aman di katalog.`
+            : `Apakah Anda yakin ingin menghapus kategori "${deleteDialog.category?.name}"? Tindakan ini tidak dapat dibatalkan.`
+        }
+        confirmText={
+          deleteDialog.productCount > 0
+            ? 'Ya, Pindahkan & Hapus'
+            : 'Ya, Hapus Kategori'
+        }
         confirmVariant="danger"
-        type="danger"
+        type={deleteDialog.productCount > 0 ? 'warning' : 'danger'}
       />
     </div>
   );
