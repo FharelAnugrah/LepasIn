@@ -18,10 +18,11 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import Input, { Textarea } from '@/components/ui/Input';
+import Input, { Textarea, Select } from '@/components/ui/Input';
 import { ConditionBadge, formatRupiah } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { validatePhone } from '@/lib/validation';
+import { focusFirstInvalidField } from '@/lib/form-utils';
 
 function CheckoutItemImage({ src, alt }) {
   const [error, setError] = useState(false);
@@ -179,7 +180,7 @@ export default function CheckoutClient({
     e.preventDefault();
     if (loading) return;
     if (hasBlockedItems) {
-      toast.error('Ada toko yang ditangguhkan atau stok barang tidak mencukupi. Silakan kembali ke keranjang terlebih dahulu.');
+      toast.warning('Ada toko yang ditangguhkan atau stok barang tidak mencukupi. Silakan kembali ke keranjang terlebih dahulu.');
       return;
     }
     setFormErrors({});
@@ -219,7 +220,7 @@ export default function CheckoutClient({
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      toast.error('Mohon lengkapi formulir pengiriman yang bertanda merah');
+      focusFirstInvalidField(Object.keys(errors));
       return;
     }
 
@@ -238,6 +239,17 @@ export default function CheckoutClient({
         toast.error(data.error || 'Gagal membuat pesanan');
         setLoading(false);
         return;
+      }
+
+      if (typeof window !== 'undefined' && data) {
+        window.dispatchEvent(
+          new CustomEvent('cart-updated', {
+            detail: {
+              cartCount: data.cartCount,
+              cartTotal: data.cartTotal,
+            },
+          })
+        );
       }
 
       const createdOrders = data.orders || [];
@@ -276,7 +288,7 @@ export default function CheckoutClient({
           <span>Checkout dan Konfirmasi Pesanan</span>
         </h1>
         <p className="text-sm text-ink-muted">
-          Pilih metode COD di kampus atau pengiriman ke alamat kost untuk setiap toko.
+          Pilih metode COD di kampus atau pengiriman ke alamat untuk setiap toko.
         </p>
       </div>
 
@@ -437,7 +449,7 @@ export default function CheckoutClient({
                         </span>
                       </div>
                       <p className="text-xs text-ink-secondary leading-relaxed">
-                        Gunakan alamat kost tersimpan atau masukkan alamat pengiriman baru.
+                        Gunakan alamat tersimpan atau masukkan alamat pengiriman baru.
                       </p>
                     </label>
                   </div>
@@ -458,31 +470,24 @@ export default function CheckoutClient({
                       </div>
 
                       {savedAddresses.length > 0 && (
-                        <div className="flex flex-col gap-1.5">
-                          <label
-                            htmlFor={`saved-addr-${group.storeId}`}
-                            className="text-xs font-semibold text-ink-secondary"
-                          >
-                            Pilih dari Alamat Tersimpan
-                          </label>
-                          <select
-                            id={`saved-addr-${group.storeId}`}
-                            value={form.selected_address_id}
-                            onChange={(e) => handleSavedAddressPick(group.storeId, e.target.value)}
-                            className="w-full h-11 px-3 rounded-lg bg-surface border border-border-subtle text-sm text-ink outline-none focus:border-brand-blue"
-                          >
-                            {savedAddresses.map((addr) => (
-                              <option key={addr.id} value={addr.id}>
-                                {addr.label} - {addr.recipient_name} ({addr.city})
-                              </option>
-                            ))}
-                            <option value="">Isi alamat baru secara manual</option>
-                          </select>
-                        </div>
+                        <Select
+                          id={`saved-addr-${group.storeId}`}
+                          label="Pilih dari Alamat Tersimpan"
+                          value={form.selected_address_id}
+                          onChange={(e) => handleSavedAddressPick(group.storeId, e.target.value)}
+                        >
+                          {savedAddresses.map((addr) => (
+                            <option key={addr.id} value={addr.id}>
+                              {addr.label} - {addr.recipient_name} ({addr.city})
+                            </option>
+                          ))}
+                          <option value="">Isi alamat baru secara manual</option>
+                        </Select>
                       )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Input
+                          id={`${group.storeId}_recipient`}
                           label="Nama Penerima"
                           placeholder="Nama lengkap penghuni kost"
                           value={form.shipping_recipient}
@@ -493,6 +498,7 @@ export default function CheckoutClient({
                           required
                         />
                         <Input
+                          id={`${group.storeId}_phone`}
                           label="Nomor WhatsApp / HP"
                           placeholder="08xxxxxxxxxx"
                           value={form.shipping_phone}
@@ -505,6 +511,7 @@ export default function CheckoutClient({
                       </div>
 
                       <Textarea
+                        id={`${group.storeId}_address`}
                         label="Alamat Lengkap Kost"
                         placeholder="Contoh: Kost Griya Putri Kamar 12, Jl. Perintis Kemerdekaan KM 10, Tamalanrea"
                         rows={2}

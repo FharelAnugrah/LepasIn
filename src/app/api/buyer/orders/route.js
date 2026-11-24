@@ -98,7 +98,7 @@ export async function POST(request) {
             `SELECT p.id, p.name, p.price, p.stock,
                     (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_url
              FROM products p
-             WHERE p.id = $1 AND p.store_id = $2
+             WHERE p.id = $1 AND p.store_id = $2 AND p.is_deleted = FALSE
              FOR UPDATE`,
             [it.product_id, orderData.store_id]
           );
@@ -202,10 +202,21 @@ export async function POST(request) {
       }
     });
 
+    const cartTotalsRes = await query(
+      `SELECT COALESCE(SUM(ci.quantity), 0)::int AS count,
+              COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
+       FROM cart_items ci
+       JOIN products p ON p.id = ci.product_id
+       WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
+      [user.id]
+    );
+
     return NextResponse.json({
       success: true,
       message: 'Pesanan berhasil dibuat!',
       orders: createdOrders,
+      cartCount: cartTotalsRes.rows[0]?.count || 0,
+      cartTotal: cartTotalsRes.rows[0]?.total || 0,
     });
   } catch (error) {
     console.error('Checkout error:', error);
