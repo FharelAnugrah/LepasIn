@@ -68,16 +68,16 @@ const stockValidator = z.preprocess(
     .string()
     .min(1, 'Jumlah stok minimal 1 buah (angka bulat non-negatif).')
     .refine((str) => !/^0\d+/.test(str), {
-      message: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).',
+      message: 'Jumlah stok tidak boleh diawali dengan angka 0 (contoh: 05).',
     })
     .refine((str) => /^-?\d+$/.test(str), {
-      message: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).',
+      message: 'Jumlah stok harus berupa angka bulat tanpa titik atau koma.',
     })
     .transform((str) => Number(str))
     .pipe(
       z
-        .number({ invalid_type_error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).' })
-        .int('Jumlah stok minimal 1 buah (angka bulat non-negatif).')
+        .number({ invalid_type_error: 'Jumlah stok harus berupa angka bulat tanpa titik atau koma.' })
+        .int('Jumlah stok harus berupa angka bulat tanpa titik atau koma.')
         .min(1, 'Jumlah stok minimal 1 buah (angka bulat non-negatif).')
         .max(10000, 'Jumlah stok maksimal 10.000.')
     )
@@ -132,7 +132,7 @@ export async function GET() {
               (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_url
        FROM products p
        JOIN categories c ON c.id = p.category_id
-       WHERE p.store_id = $1
+       WHERE p.store_id = $1 AND p.is_deleted = FALSE
        ORDER BY p.created_at DESC`,
       [store.id]
     );

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Package, ArrowLeft, FileText, ImagePlus, Tag } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
+import RupiahInput from '@/components/ui/RupiahInput';
 import ImageUploader from '@/components/ui/ImageUploader';
 import { useToast } from '@/components/ui/Toast';
 import {
@@ -15,6 +16,8 @@ import {
   validateProductName,
   validateProductImageUrl,
 } from '@/lib/product-validation';
+import { focusFirstInvalidField } from '@/lib/form-utils';
+import { formatRupiahScaleHint, getDiscountPercent } from '@/lib/price-input';
 
 const VALID_CONDITIONS = ['like_new', 'good', 'fair', 'minor_defect'];
 
@@ -33,7 +36,7 @@ function validateRupiahField(rawValue, label, { required = false } = {}) {
     };
   }
   if (!/^-?\d+$/.test(str)) {
-    return { error: 'Harga barang minimal Rp1.000.', str };
+    return { error: `${label} harus berupa angka bulat tanpa titik atau koma.`, str };
   }
   const num = Number(str);
   if (num < 1000) {
@@ -50,19 +53,24 @@ function validateRupiahField(rawValue, label, { required = false } = {}) {
  */
 function validateStockField(rawValue, minStock) {
   const str = String(rawValue ?? '').trim();
+  const minMsg =
+    minStock === 0
+      ? 'Jumlah stok minimal 0 buah (angka bulat non-negatif).'
+      : 'Jumlah stok minimal 1 buah (angka bulat non-negatif).';
+
   if (!str) {
-    return { error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).', str: '' };
+    return { error: minMsg, str: '' };
   }
   if (/^0\d+/.test(str)) {
-    return { error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).', str };
+    return { error: 'Jumlah stok tidak boleh diawali dengan angka 0 (contoh: 05).', str };
   }
   if (!/^-?\d+$/.test(str)) {
-    return { error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).', str };
+    return { error: 'Jumlah stok harus berupa angka bulat tanpa titik atau koma.', str };
   }
   const num = Number(str);
   if (num < minStock || num < 0) {
     return {
-      error: 'Jumlah stok minimal 1 buah (angka bulat non-negatif).',
+      error: minMsg,
       str,
     };
   }
@@ -249,8 +257,9 @@ export default function ProductForm({
 
     if (Object.keys(validation.errors).length > 0) {
       setErrors(validation.errors);
-      const firstMsg = Object.values(validation.errors)[0][0];
-      toast.error(firstMsg);
+      focusFirstInvalidField(
+        Object.keys(validation.errors).map((key) => `product-${key}`)
+      );
       return;
     }
 
@@ -284,12 +293,17 @@ export default function ProductForm({
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.details) {
+        const hasFieldErrors = data.details && Object.keys(data.details).length > 0;
+        if (hasFieldErrors) {
           setErrors(data.details);
+          focusFirstInvalidField(
+            Object.keys(data.details).map((key) => `product-${key}`)
+          );
+        } else {
+          toast.error(
+            data.error || (isEdit ? 'Gagal memperbarui barang' : 'Gagal menyimpan barang')
+          );
         }
-        toast.error(
-          data.error || (isEdit ? 'Gagal memperbarui barang' : 'Gagal menyimpan barang')
-        );
         setLoading(false);
         return;
       }
@@ -307,6 +321,32 @@ export default function ProductForm({
       setLoading(false);
     }
   };
+
+  const priceScaleHint = formatRupiahScaleHint(price);
+  const originalPriceScaleHint = formatRupiahScaleHint(originalPrice);
+  const discountPercent = getDiscountPercent(price, originalPrice);
+
+  const priceHelper = priceScaleHint || 'Minimal Rp 1.000, maks. Rp 100 juta';
+
+  const isPriceNumeric = /^\d+$/.test(price) && !/^0\d+/.test(price) && Number(price) >= 1000 && Number(price) <= 100_000_000;
+  let originalPriceHelper = 'Akan ditampilkan sebagai harga coret';
+  if (originalPriceScaleHint) {
+    if (discountPercent !== null) {
+      originalPriceHelper = (
+        <span className="inline-flex items-center gap-1.5 flex-wrap">
+          <span>{originalPriceScaleHint}</span>
+          <span aria-hidden="true">•</span>
+          <span className="font-semibold text-condition-mint-text">
+            Tampil Hemat {discountPercent}%
+          </span>
+        </span>
+      );
+    } else if (isPriceNumeric && Number(originalPrice) <= Number(price)) {
+      originalPriceHelper = `${originalPriceScaleHint} • Harus lebih besar dari harga lepas`;
+    } else {
+      originalPriceHelper = `${originalPriceScaleHint} • Akan tampil sebagai harga coret`;
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6 w-full">
@@ -336,9 +376,9 @@ export default function ProductForm({
             {/* Kartu 1: Informasi Barang */}
             <section
               aria-labelledby="card-product-info"
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col gap-5"
+              className="surface-3d rounded-2xl p-6 flex flex-col gap-5"
             >
-              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3 pb-4 border-b border-border-subtle">
                 <div className="w-9 h-9 rounded-xl bg-brand-blue-soft text-brand-blue flex items-center justify-center shrink-0">
                   <FileText className="w-5 h-5" aria-hidden="true" />
                 </div>
@@ -354,6 +394,7 @@ export default function ProductForm({
 
               <div className="flex flex-col gap-4">
                 <Input
+                  id="product-name"
                   label="Nama Barang"
                   placeholder="Contoh: Rice Cooker Miyako 1.2L Mulus"
                   value={name}
@@ -367,6 +408,7 @@ export default function ProductForm({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Select
+                    id="product-category_id"
                     label="Kategori Barang"
                     value={categoryId}
                     onChange={(e) => {
@@ -384,6 +426,7 @@ export default function ProductForm({
                   </Select>
 
                   <Select
+                    id="product-condition"
                     label="Kondisi Barang"
                     value={condition}
                     onChange={(e) => {
@@ -401,6 +444,7 @@ export default function ProductForm({
                 </div>
 
                 <Textarea
+                  id="product-description"
                   label="Deskripsi Lengkap Barang"
                   placeholder="Jelaskan alasan dijual, lama pemakaian, kelengkapan kardus/kabel, minus kecil bila ada, dan area COD sekampus..."
                   rows={4}
@@ -418,10 +462,12 @@ export default function ProductForm({
 
             {/* Kartu 2: Foto Barang Preloved */}
             <section
+              id="product-image_urls"
+              tabIndex={-1}
               aria-labelledby="card-product-photos"
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col gap-5"
+              className="surface-3d rounded-2xl p-6 flex flex-col gap-5 outline-none"
             >
-              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3 pb-4 border-b border-border-subtle">
                 <div className="w-9 h-9 rounded-xl bg-brand-blue-soft text-brand-blue flex items-center justify-center shrink-0">
                   <ImagePlus className="w-5 h-5" aria-hidden="true" />
                 </div>
@@ -459,9 +505,9 @@ export default function ProductForm({
             {/* Kartu 3: Harga & Stok */}
             <section
               aria-labelledby="card-product-pricing"
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col gap-5"
+              className="surface-3d rounded-2xl p-6 flex flex-col gap-5"
             >
-              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3 pb-4 border-b border-border-subtle">
                 <div className="w-9 h-9 rounded-xl bg-brand-blue-soft text-brand-blue flex items-center justify-center shrink-0">
                   <Tag className="w-5 h-5" aria-hidden="true" />
                 </div>
@@ -476,37 +522,37 @@ export default function ProductForm({
               </div>
 
               <div className="flex flex-col gap-4">
-                <Input
-                  label="Harga Lepas (Rp)"
-                  type="number"
-                  placeholder="50000"
+                <RupiahInput
+                  id="product-price"
+                  label="Harga Lepas"
+                  placeholder="50.000"
                   value={price}
-                  onChange={(e) => {
-                    setPrice(e.target.value);
+                  onValueChange={(nextDigits) => {
+                    setPrice(nextDigits);
                     clearFieldError('price');
                   }}
                   error={errors.price?.[0]}
-                  min="1000"
-                  step="1"
+                  helperText={priceHelper}
+                  maxDigits={10}
                   required
                 />
 
-                <Input
+                <RupiahInput
+                  id="product-original_price"
                   label="Harga Asli Baru (Opsional)"
-                  type="number"
-                  placeholder="120000"
+                  placeholder="120.000"
                   value={originalPrice}
-                  onChange={(e) => {
-                    setOriginalPrice(e.target.value);
+                  onValueChange={(nextDigits) => {
+                    setOriginalPrice(nextDigits);
                     clearFieldError('original_price');
                   }}
                   error={errors.original_price?.[0]}
-                  min="1000"
-                  step="1"
-                  helperText="Akan ditampilkan sebagai harga coret"
+                  helperText={originalPriceHelper}
+                  maxDigits={10}
                 />
 
                 <Input
+                  id="product-stock"
                   label="Jumlah Stok"
                   type="number"
                   value={stock}
@@ -516,8 +562,9 @@ export default function ProductForm({
                   }}
                   error={errors.stock?.[0]}
                   min={String(minStock)}
+                  max="10000"
                   step="1"
-                  helperText={isEdit ? 'Minimal 0 (isi 0 jika barang habis)' : 'Minimal 1 barang'}
+                  helperText={isEdit ? 'Minimal 0 (isi 0 jika barang habis), maks. 10.000' : 'Minimal 1 barang, maks. 10.000'}
                   required
                 />
               </div>
@@ -526,13 +573,25 @@ export default function ProductForm({
             {/* Kartu 4: Kartu Aksi */}
             <section
               aria-label="Aksi simpan produk"
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"
+              className="surface-3d rounded-2xl p-5"
             >
-              <div className="flex flex-wrap justify-end gap-3">
-                <Button href="/seller/products" variant="secondary" disabled={loading}>
+              <div className="flex items-center gap-2.5">
+                <Button
+                  href="/seller/products"
+                  variant="secondary"
+                  size="sm"
+                  disabled={loading}
+                  className="whitespace-nowrap"
+                >
                   Batal
                 </Button>
-                <Button type="submit" variant="navy" loading={loading}>
+                <Button
+                  type="submit"
+                  variant="navy"
+                  size="sm"
+                  loading={loading}
+                  className="flex-1 whitespace-nowrap"
+                >
                   {isEdit ? 'Simpan Perubahan' : 'Simpan Produk'}
                 </Button>
               </div>
