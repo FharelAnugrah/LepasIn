@@ -480,7 +480,6 @@ export default function RegisterForm() {
       console.error('Registration submit error:', err);
       const networkError = 'Terjadi gangguan koneksi. Silakan periksa jaringan internetmu.';
       setGeneralError(networkError);
-      toast.error(networkError);
       setLoading(false);
     }
   };

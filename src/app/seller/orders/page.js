@@ -51,7 +51,7 @@ export default async function SellerOrdersPage() {
           <span>Pesanan Masuk ke Tokomu</span>
         </h1>
         <p className="text-sm text-ink-muted mt-1">
-          Kelola pesanan dari pembeli, atur jadwal COD di kampus atau pengiriman ke alamat kost.
+          Kelola pesanan dari pembeli, atur jadwal COD di kampus atau pengiriman ke alamat.
         </p>
       </div>
 

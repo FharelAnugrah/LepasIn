@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -13,7 +12,6 @@ import {
   Loader2,
   ShieldCheck,
   GraduationCap,
-  ExternalLink,
   Package,
 } from 'lucide-react';
 import Input, { Textarea } from '@/components/ui/Input';
@@ -21,6 +19,7 @@ import Button from '@/components/ui/Button';
 import CampusSelector from '@/components/ui/CampusSelector';
 import { useToast } from '@/components/ui/Toast';
 import { validateStoreName, validateStoreDescription, validateLocation } from '@/lib/validation';
+import { focusFirstInvalidField } from '@/lib/form-utils';
 
 export default function StoreSettingsClient({
   store,
@@ -128,6 +127,13 @@ export default function StoreSettingsClient({
     const errs = validateForm();
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
+      const idMap = {
+        name: 'store-name-input',
+        campus: 'store-campus-selector',
+        location: 'store-location-input',
+        description: 'store-description-input',
+      };
+      focusFirstInvalidField(Object.keys(errs).map((k) => idMap[k]).filter(Boolean));
       return;
     }
 
@@ -189,16 +195,6 @@ export default function StoreSettingsClient({
             Sesuaikan nama toko, asal kampus, dan area kost untuk mempermudah COD sekampus.
           </p>
         </div>
-
-        {store?.id && (
-          <Link
-            href={`/stores/${store.id}`}
-            className="btn-3d btn-3d-outline inline-flex items-center justify-center gap-1.5 min-h-[40px] px-4 py-2 rounded-xl text-xs font-semibold shrink-0 w-fit"
-          >
-            <span>Lihat Halaman Toko</span>
-            <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-          </Link>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start w-full">
@@ -503,15 +499,6 @@ export default function StoreSettingsClient({
                   <strong className="text-ink">{productCount}</strong> produk aktif
                 </span>
               </span>
-              {store?.id && (
-                <Link
-                  href={`/stores/${store.id}`}
-                  className="font-semibold text-brand-blue hover:underline inline-flex items-center gap-1 shrink-0"
-                >
-                  <span>Buka Toko</span>
-                  <ExternalLink className="w-3 h-3" aria-hidden="true" />
-                </Link>
-              )}
             </div>
           </div>
 

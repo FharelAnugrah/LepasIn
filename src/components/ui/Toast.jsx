@@ -1,10 +1,45 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 const ToastContext = createContext(null);
 const MAX_TOASTS = 3;
+
+const TOAST_VARIANTS = {
+  success: {
+    title: 'Berhasil',
+    icon: CheckCircle2,
+    role: 'status',
+    accentClass: 'border-l-success-text',
+    iconBgClass: 'bg-success-bg text-success-text border-green-200',
+    titleClass: 'text-success-text',
+  },
+  error: {
+    title: 'Gagal',
+    icon: AlertCircle,
+    role: 'alert',
+    accentClass: 'border-l-danger-text',
+    iconBgClass: 'bg-danger-bg text-danger-text border-red-200',
+    titleClass: 'text-danger-text',
+  },
+  warning: {
+    title: 'Perhatian',
+    icon: AlertTriangle,
+    role: 'status',
+    accentClass: 'border-l-warning-text',
+    iconBgClass: 'bg-warning-bg text-warning-text border-amber-200',
+    titleClass: 'text-warning-text',
+  },
+  info: {
+    title: 'Informasi',
+    icon: Info,
+    role: 'status',
+    accentClass: 'border-l-brand-blue',
+    iconBgClass: 'bg-brand-blue-soft text-brand-blue border-brand-blue-border',
+    titleClass: 'text-brand-blue',
+  },
+};
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -55,11 +90,25 @@ export function ToastProvider({ children }) {
   );
 
   const addToast = useCallback(
-    (message, type = 'info', duration = 3500) => {
+    (message, type = 'info', optionsOrDuration) => {
       const text = String(message ?? '').trim();
       if (!text) return;
 
-      const toastKey = `${type}::${text}`;
+      const variantConfig = TOAST_VARIANTS[type] || TOAST_VARIANTS.info;
+      const opts =
+        typeof optionsOrDuration === 'number'
+          ? { duration: optionsOrDuration }
+          : optionsOrDuration || {};
+
+      const resolvedTitle = opts.title || variantConfig.title;
+      const duration =
+        typeof opts.duration === 'number'
+          ? opts.duration
+          : type === 'error'
+          ? 4500
+          : 3500;
+
+      const toastKey = `${type}::${resolvedTitle}::${text}`;
       const existingId = activeKeysRef.current.get(toastKey);
 
       // Deduplikasi toast identik yang sedang tampil: cukup perpanjang durasinya tanpa menumpuk kartu baru
@@ -86,7 +135,7 @@ export function ToastProvider({ children }) {
 
       setToasts((prev) => [
         ...prev.filter((t) => keptIds.has(t.id)),
-        { id, message: text, type },
+        { id, title: resolvedTitle, message: text, type },
       ]);
       scheduleToastRemoval(id, duration);
     },
@@ -107,9 +156,10 @@ export function ToastProvider({ children }) {
 
   const toast = useMemo(
     () => ({
-      success: (msg, duration) => addToast(msg, 'success', duration),
-      error: (msg, duration) => addToast(msg, 'error', duration),
-      info: (msg, duration) => addToast(msg, 'info', duration),
+      success: (msg, optionsOrDuration) => addToast(msg, 'success', optionsOrDuration),
+      error: (msg, optionsOrDuration) => addToast(msg, 'error', optionsOrDuration),
+      warning: (msg, optionsOrDuration) => addToast(msg, 'warning', optionsOrDuration),
+      info: (msg, optionsOrDuration) => addToast(msg, 'info', optionsOrDuration),
     }),
     [addToast]
   );
@@ -223,36 +273,41 @@ export function ToastProvider({ children }) {
         role="region"
         aria-live="polite"
         aria-label="Notifikasi"
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-md px-4"
+        className="fixed z-[9999] pointer-events-none flex flex-col gap-2.5 top-25 inset-x-3 mx-auto max-w-md md:inset-x-auto md:top-20 md:bottom-auto md:right-6 md:w-[22rem] md:mx-0"
       >
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            role="status"
-            className="pointer-events-auto flex items-center justify-between gap-3 plinth-navy-3d text-white text-sm font-medium px-4 py-3 rounded-xl animate-modal-3d"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              {t.type === 'success' && (
-                <CheckCircle2 className="w-4 h-4 text-campus-gold shrink-0" aria-hidden="true" />
-              )}
-              {t.type === 'error' && (
-                <AlertCircle className="w-4 h-4 text-red-300 shrink-0" aria-hidden="true" />
-              )}
-              {t.type === 'info' && (
-                <Info className="w-4 h-4 text-brand-blue-border shrink-0" aria-hidden="true" />
-              )}
-              <span className="leading-snug break-words">{t.message}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => removeToast(t.id)}
-              className="text-white/75 hover:text-white p-1.5 rounded-lg transition-colors shrink-0"
-              aria-label="Tutup notifikasi"
+        {toasts.map((t) => {
+          const variant = TOAST_VARIANTS[t.type] || TOAST_VARIANTS.info;
+          const Icon = variant.icon;
+          return (
+            <div
+              key={t.id}
+              role={variant.role}
+              className={`pointer-events-auto surface-3d border-l-4 ${variant.accentClass} rounded-2xl p-3.5 flex items-start gap-3 animate-modal-3d`}
             >
-              <X className="w-4 h-4" aria-hidden="true" />
-            </button>
-          </div>
-        ))}
+              <span
+                className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${variant.iconBgClass}`}
+              >
+                <Icon className="w-4 h-4" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className={`text-xs font-bold tracking-tight leading-tight ${variant.titleClass}`}>
+                  {t.title}
+                </p>
+                <p className="text-xs text-ink-secondary leading-relaxed break-words mt-0.5">
+                  {t.message}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeToast(t.id)}
+                className="text-ink-muted hover:text-ink hover:bg-surface-muted p-1 rounded-lg transition-colors shrink-0 -mt-0.5 -mr-0.5"
+                aria-label="Tutup notifikasi"
+              >
+                <X className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );
@@ -264,6 +319,7 @@ export function useToast() {
     return {
       success: (msg) => console.log('Toast success:', msg),
       error: (msg) => console.error('Toast error:', msg),
+      warning: (msg) => console.warn('Toast warning:', msg),
       info: (msg) => console.log('Toast info:', msg),
     };
   }

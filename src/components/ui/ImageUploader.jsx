@@ -69,7 +69,7 @@ export default function ImageUploader({
 
     const remainingSlots = maxImages - images.length;
     if (remainingSlots <= 0) {
-      toast.error(`Maksimal ${maxImages} foto telah tercapai.`);
+      toast.warning(`Maksimal ${maxImages} foto telah tercapai.`);
       return;
     }
 

@@ -142,8 +142,12 @@ export default function AddressManager({ initialAddresses = [], user }) {
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.details) setFormErrors(data.details);
-        toast.error(data.error || 'Gagal menyimpan alamat');
+        const hasFieldErrors = data.details && Object.keys(data.details).length > 0;
+        if (hasFieldErrors) {
+          setFormErrors(data.details);
+        } else {
+          toast.error(data.error || 'Gagal menyimpan alamat');
+        }
         setFormLoading(false);
         return;
       }
@@ -223,10 +227,10 @@ export default function AddressManager({ initialAddresses = [], user }) {
         <div>
           <h1 className="text-2xl font-bold text-ink tracking-tight flex items-center gap-2">
             <MapPin className="w-6 h-6 text-brand-blue" aria-hidden="true" />
-            <span>Daftar Alamat Kost</span>
+            <span>Daftar Alamat</span>
           </h1>
           <p className="text-sm text-ink-muted mt-1">
-            Simpan lokasi kost atau rumah untuk mempercepat checkout pengiriman.
+            Simpan lokasi untuk mempercepat checkout pengiriman.
           </p>
         </div>
         <Button variant="primary" onClick={openAddModal} icon={Plus}>
@@ -241,7 +245,7 @@ export default function AddressManager({ initialAddresses = [], user }) {
           </div>
           <h2 className="text-base font-bold text-ink mb-1">Belum Ada Alamat Tersimpan</h2>
           <p className="text-xs md:text-sm text-ink-muted mb-5 leading-relaxed">
-            Tambahkan alamat kost atau tempat tinggalmu agar tidak perlu mengetik ulang saat checkout.
+            Tambahkan alamat agar tidak perlu mengetik ulang saat checkout.
           </p>
           <Button variant="primary" onClick={openAddModal} icon={Plus}>
             Tambah Alamat Sekarang
@@ -331,7 +335,7 @@ export default function AddressManager({ initialAddresses = [], user }) {
       <Modal
         isOpen={modalOpen}
         onClose={() => !formLoading && setModalOpen(false)}
-        title={editingAddress ? 'Ubah Alamat Pengiriman' : 'Tambah Alamat Kost / Rumah'}
+        title={editingAddress ? 'Ubah Alamat Pengiriman' : 'Tambah Alamat Pengiriman Baru'}
         maxWidth="max-w-lg"
       >
         <form

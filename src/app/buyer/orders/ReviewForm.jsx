@@ -49,7 +49,6 @@ export default function ReviewForm({ orderItemId, productName }) {
           data.error ||
           'Gagal mengirim ulasan';
         setReviewError(errorMsg);
-        toast.error(errorMsg);
         setLoading(false);
         return;
       }
@@ -60,7 +59,7 @@ export default function ReviewForm({ orderItemId, productName }) {
       router.refresh();
     } catch (err) {
       console.error(err);
-      toast.error('Terjadi gangguan jaringan');
+      setReviewError('Terjadi gangguan jaringan. Silakan coba lagi.');
       setLoading(false);
     }
   };
