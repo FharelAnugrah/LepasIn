@@ -1,5 +1,5 @@
 import { query } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, redirectRestrictedPublicRole } from '@/lib/auth';
 import { parsePositiveInt, parseNonNegativeInt } from '@/lib/params';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -16,6 +16,7 @@ export const metadata = {
 export default async function ProductsPage({ searchParams }) {
   const sp = await searchParams;
   const user = await getCurrentUser();
+  redirectRestrictedPublicRole(user);
 
   const q = sp?.q || null;
   const campus = parsePositiveInt(sp?.campus);
@@ -24,7 +25,7 @@ export default async function ProductsPage({ searchParams }) {
   const condition = sp?.condition || null;
   const minPrice = parseNonNegativeInt(sp?.minPrice);
   const maxPrice = parseNonNegativeInt(sp?.maxPrice);
-  const sort = sp?.sort || 'latest';
+  const sort = ['latest', 'price_asc', 'price_desc'].includes(sp?.sort) ? sp.sort : 'latest';
   const page = Math.max(1, parsePositiveInt(sp?.page) || 1);
   const limit = 12;
   const offset = (page - 1) * limit;
@@ -32,7 +33,6 @@ export default async function ProductsPage({ searchParams }) {
   let orderBy = 'p.created_at DESC';
   if (sort === 'price_asc') orderBy = 'p.price ASC';
   if (sort === 'price_desc') orderBy = 'p.price DESC';
-  if (sort === 'rating_desc') orderBy = 'COALESCE(r.avg_rating, 0) DESC, p.created_at DESC';
 
   const sql = `
     SELECT p.id, p.name, p.price, p.original_price, p.stock, p.condition, p.created_at,
@@ -56,7 +56,8 @@ export default async function ProductsPage({ searchParams }) {
     JOIN users u      ON u.id = s.user_id AND u.seller_status = 'approved'
     LEFT JOIN (SELECT product_id, ROUND(AVG(rating), 1)::float AS avg_rating, COUNT(*)::int AS review_count
                FROM reviews GROUP BY product_id) r ON r.product_id = p.id
-    WHERE ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
+    WHERE p.is_deleted = FALSE
+      AND ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
       AND ($2::int  IS NULL OR s.campus_id = $2)
       AND ($3::int  IS NULL OR p.category_id = $3)
       AND ($4::text IS NULL OR p.condition = $4)
@@ -73,7 +74,8 @@ export default async function ProductsPage({ searchParams }) {
     JOIN stores s     ON s.id = p.store_id
     JOIN campuses cp  ON cp.id = s.campus_id
     JOIN users u      ON u.id = s.user_id AND u.seller_status = 'approved'
-    WHERE ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
+    WHERE p.is_deleted = FALSE
+      AND ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
       AND ($2::int  IS NULL OR s.campus_id = $2)
       AND ($3::int  IS NULL OR p.category_id = $3)
       AND ($4::text IS NULL OR p.condition = $4)
@@ -84,7 +86,7 @@ export default async function ProductsPage({ searchParams }) {
 
   const filterParams = [q, campus, category, condition, minPrice, maxPrice, store];
 
-  const [productsRes, countRes, categoriesRes, campusesRes, allStoresRes] = await Promise.all([
+  const [productsRes, countRes, categoriesRes, campusesRes] = await Promise.all([
     query(sql, [...filterParams, limit, offset]),
     query(countSql, filterParams),
     query(`
@@ -97,26 +99,18 @@ export default async function ProductsPage({ searchParams }) {
         id ASC
     `),
     query(`SELECT id, name, short_name, city, province FROM campuses ORDER BY name ASC`),
-    query(`
-      SELECT s.id, s.name, s.campus_id, cp.short_name AS campus_short_name
-      FROM stores s
-      JOIN users u ON u.id = s.user_id AND u.seller_status = 'approved'
-      JOIN campuses cp ON cp.id = s.campus_id
-      ORDER BY s.name ASC
-    `),
   ]);
 
   const products = productsRes.rows;
   const total = countRes.rows[0]?.total || 0;
   const totalPages = Math.ceil(total / limit);
-  const allStores = allStoresRes.rows;
 
   let matchedStores = [];
   if (q && q.trim()) {
     const storeSearchRes = await query(
       `SELECT s.id, s.name, s.description, s.location, s.image_url,
               cp.short_name AS campus_short_name, cp.name AS campus_name,
-              (SELECT COUNT(*)::int FROM products p WHERE p.store_id = s.id AND p.stock > 0) AS products_count
+              (SELECT COUNT(*)::int FROM products p WHERE p.store_id = s.id AND p.stock > 0 AND p.is_deleted = FALSE) AS products_count
        FROM stores s
        JOIN users u ON u.id = s.user_id AND u.seller_status = 'approved'
        JOIN campuses cp ON cp.id = s.campus_id
@@ -150,7 +144,7 @@ export default async function ProductsPage({ searchParams }) {
       `SELECT COALESCE(SUM(ci.quantity), 0)::int AS count, COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
-       WHERE ci.user_id = $1`,
+       WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
       [user.id]
     );
     cartCount = cartRes.rows[0]?.count || 0;
@@ -183,7 +177,6 @@ export default async function ProductsPage({ searchParams }) {
           filters={{ q, campus, category, condition, minPrice, maxPrice, sort, store }}
           categories={categoriesRes.rows}
           campuses={campusesRes.rows}
-          stores={allStores}
           matchedStores={matchedStores}
           selectedStore={selectedStoreObj}
           user={user}

@@ -101,16 +101,22 @@ export default function ProductCard({
         body: JSON.stringify({ product_id: product.id }),
       });
 
-      if (res.ok) {
-        const nextState = !wishlisted;
-        setWishlisted(nextState);
-        toast.success(nextState ? 'Ditambahkan ke favorit' : 'Dihapus dari favorit');
-        if (onWishlistToggle) {
-          onWishlistToggle(product.id, nextState);
-        }
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(data.error || 'Gagal memperbarui favorit');
+        return;
+      }
+
+      const nextState = !wishlisted;
+      setWishlisted(nextState);
+      toast.success(nextState ? 'Ditambahkan ke favorit' : 'Dihapus dari favorit');
+      if (onWishlistToggle) {
+        onWishlistToggle(product.id, nextState);
       }
     } catch (err) {
       console.error('Wishlist error:', err);
+      toast.error('Terjadi gangguan jaringan');
     } finally {
       setWishlistLoading(false);
     }

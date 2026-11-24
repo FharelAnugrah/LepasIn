@@ -18,6 +18,7 @@ import {
   MessageSquare,
   MessageCircle,
   Handshake,
+  Tag,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge, { PricePill, ConditionBadge, CampusBadge, formatRupiah } from '@/components/ui/Badge';
@@ -134,13 +135,19 @@ export default function ProductDetailClient({
         body: JSON.stringify({ product_id: product.id }),
       });
 
-      if (res.ok) {
-        const nextState = !wishlisted;
-        setWishlisted(nextState);
-        toast.success(nextState ? 'Ditambahkan ke favorit' : 'Dihapus dari favorit');
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(data.error || 'Gagal memperbarui favorit');
+        return;
       }
+
+      const nextState = !wishlisted;
+      setWishlisted(nextState);
+      toast.success(nextState ? 'Ditambahkan ke favorit' : 'Dihapus dari favorit');
     } catch (err) {
       console.error(err);
+      toast.error('Terjadi gangguan jaringan');
     } finally {
       setWishlistLoading(false);
     }
@@ -237,9 +244,9 @@ export default function ProductDetailClient({
           {/* Badge Kampus, Kondisi, Kategori */}
           <div className="flex flex-wrap items-center gap-2">
             <CampusBadge shortName={product.campus_short_name} cityName={product.campus_city} />
-            <ConditionBadge condition={product.condition} />
-            <Badge variant="secondary" size="xs">
-              {product.category_name}
+            <ConditionBadge condition={product.condition} showPrefix={true} />
+            <Badge variant="secondary" size="xs" icon={Tag}>
+              <span>Kategori: {product.category_name}</span>
             </Badge>
           </div>
 

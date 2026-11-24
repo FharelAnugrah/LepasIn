@@ -13,7 +13,8 @@ export async function GET(request) {
     const condition = searchParams.get('condition') || null;
     const minPrice = parseNonNegativeInt(searchParams.get('minPrice'));
     const maxPrice = parseNonNegativeInt(searchParams.get('maxPrice'));
-    const sort = searchParams.get('sort') || 'latest';
+    const rawSort = searchParams.get('sort');
+    const sort = ['latest', 'price_asc', 'price_desc'].includes(rawSort) ? rawSort : 'latest';
     const page = Math.max(1, parsePositiveInt(searchParams.get('page')) || 1);
     const limit = Math.max(1, Math.min(50, parsePositiveInt(searchParams.get('limit')) || 12));
     const offset = (page - 1) * limit;
@@ -21,7 +22,6 @@ export async function GET(request) {
     let orderBy = 'p.created_at DESC';
     if (sort === 'price_asc') orderBy = 'p.price ASC';
     if (sort === 'price_desc') orderBy = 'p.price DESC';
-    if (sort === 'rating_desc') orderBy = 'COALESCE(r.avg_rating, 0) DESC, p.created_at DESC';
 
     const sql = `
       SELECT p.id, p.name, p.price, p.original_price, p.stock, p.condition, p.created_at,
@@ -45,7 +45,8 @@ export async function GET(request) {
       JOIN users u      ON u.id = s.user_id AND u.seller_status = 'approved'
       LEFT JOIN (SELECT product_id, ROUND(AVG(rating), 1)::float AS avg_rating, COUNT(*)::int AS review_count
                  FROM reviews GROUP BY product_id) r ON r.product_id = p.id
-      WHERE ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
+      WHERE p.is_deleted = FALSE
+        AND ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
         AND ($2::int  IS NULL OR s.campus_id = $2)
         AND ($3::int  IS NULL OR p.category_id = $3)
         AND ($4::text IS NULL OR p.condition = $4)
@@ -61,7 +62,8 @@ export async function GET(request) {
       JOIN stores s     ON s.id = p.store_id
       JOIN campuses cp  ON cp.id = s.campus_id
       JOIN users u      ON u.id = s.user_id AND u.seller_status = 'approved'
-      WHERE ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
+      WHERE p.is_deleted = FALSE
+        AND ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%' OR s.name ILIKE '%' || $1 || '%')
         AND ($2::int  IS NULL OR s.campus_id = $2)
         AND ($3::int  IS NULL OR p.category_id = $3)
         AND ($4::text IS NULL OR p.condition = $4)

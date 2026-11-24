@@ -22,7 +22,6 @@ export default function WishlistManager({ initialProducts = [], user }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border-subtle pb-4">
         <div>
           <h1 className="text-2xl font-bold text-ink tracking-tight flex items-center gap-2">
-            <Heart className="w-6 h-6 text-danger-text fill-danger-text" aria-hidden="true" />
             <span>Barang Favorit Saya</span>
           </h1>
           <p className="text-sm text-ink-muted mt-1">
@@ -35,18 +34,20 @@ export default function WishlistManager({ initialProducts = [], user }) {
       </div>
 
       {products.length === 0 ? (
-        <div className="bg-surface border border-border-subtle rounded-xl p-10 text-center max-w-md mx-auto my-6">
-          <div className="w-14 h-14 rounded-xl bg-danger-bg text-danger-text border border-red-200 flex items-center justify-center mx-auto mb-4">
-            <Heart className="w-7 h-7" aria-hidden="true" />
+        <div className="surface-3d rounded-3xl p-10 text-center max-w-lg mx-auto my-8">
+          <div className="w-16 h-16 rounded-2xl icon-plinth-3d text-danger-text flex items-center justify-center mx-auto mb-4">
+            <Heart className="w-8 h-8" aria-hidden="true" />
           </div>
-          <h2 className="text-base font-bold text-ink mb-1">Belum Ada Barang Favorit</h2>
-          <p className="text-xs md:text-sm text-ink-muted mb-5 leading-relaxed">
+          <h2 className="text-lg md:text-xl font-bold text-ink mb-2">Belum Ada Barang Favorit</h2>
+          <p className="text-sm text-ink-muted mb-6 leading-relaxed max-w-sm mx-auto">
             Tekan ikon hati pada kartu produk untuk menyimpan barang incaranmu.
           </p>
-          <Button href="/products" variant="primary">Jelajah Katalog</Button>
+          <Button href="/products" variant="primary" size="lg" className="rounded-xl">
+            Jelajah Katalog
+          </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {products.map((p) => (
             <ProductCard
               key={p.id}
