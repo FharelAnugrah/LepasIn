@@ -16,7 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { query } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, redirectRestrictedPublicRole } from '@/lib/auth';
 import { parsePositiveInt } from '@/lib/params';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -65,6 +65,7 @@ function getCategoryIcon(categoryName = '') {
 export default async function HomePage({ searchParams }) {
   const sp = await searchParams;
   const user = await getCurrentUser();
+  redirectRestrictedPublicRole(user);
 
   const rawCampus = (Array.isArray(sp?.campus) ? sp.campus[0] : sp?.campus || '').trim();
   const isAllCampuses = rawCampus.toLowerCase() === 'all';
@@ -102,7 +103,7 @@ export default async function HomePage({ searchParams }) {
         (SELECT COUNT(*)::int FROM products p
          JOIN stores s ON s.id = p.store_id
          JOIN users u ON u.id = s.user_id AND u.seller_status = 'approved'
-         WHERE p.stock > 0) AS available_count
+         WHERE p.stock > 0 AND p.is_deleted = FALSE) AS available_count
     `);
     realSummary = {
       campusCount: summaryRes.rows[0]?.campus_count || 0,
@@ -122,7 +123,7 @@ export default async function HomePage({ searchParams }) {
       `SELECT COALESCE(SUM(ci.quantity), 0)::int AS count, COALESCE(SUM(ci.quantity * p.price), 0)::int AS total
        FROM cart_items ci
        JOIN products p ON p.id = ci.product_id
-       WHERE ci.user_id = $1`,
+       WHERE ci.user_id = $1 AND p.is_deleted = FALSE`,
       [user.id]
     );
     cartCount = cartRes.rows[0]?.count || 0;
@@ -136,7 +137,7 @@ export default async function HomePage({ searchParams }) {
   let recommendations = [];
   try {
     const recParams = [];
-    let recSql = `${PRODUCT_BASE_QUERY} WHERE p.stock > 0`;
+    let recSql = `${PRODUCT_BASE_QUERY} WHERE p.stock > 0 AND p.is_deleted = FALSE`;
 
     if (selectedCampusId) {
       recParams.push(selectedCampusId);
@@ -171,6 +172,7 @@ export default async function HomePage({ searchParams }) {
       const fallbackRes = await query(
         `${PRODUCT_BASE_QUERY}
          WHERE p.stock > 0
+           AND p.is_deleted = FALSE
            ${excludeClause}
          ORDER BY RANDOM()
          LIMIT $1`,
@@ -185,7 +187,9 @@ export default async function HomePage({ searchParams }) {
   // 5. Query "Baru Dilepas"
   let latestProducts = [];
   try {
-    const latestRes = await query(`${PRODUCT_BASE_QUERY} ORDER BY p.created_at DESC LIMIT 8`);
+    const latestRes = await query(
+      `${PRODUCT_BASE_QUERY} WHERE p.is_deleted = FALSE ORDER BY p.created_at DESC LIMIT 8`
+    );
     latestProducts = latestRes.rows;
   } catch (err) {
     console.error('Error fetching latest products:', err);
@@ -195,11 +199,14 @@ export default async function HomePage({ searchParams }) {
   const role = (user?.role || '').toLowerCase();
   const isSeller = role === 'seller' || Boolean(user?.store_id) || user?.seller_status === 'approved';
   const isAdmin = role === 'admin';
+  const isBuyer = role === 'buyer';
 
   const secondaryCta = isSeller
     ? { href: '/seller/products/new', label: '+ Jual Barang Preloved' }
     : isAdmin
     ? { href: '/admin/sellers', label: '📋 Verifikasi Penjual' }
+    : isBuyer
+    ? { href: '/buyer/orders', label: 'Pesanan Saya' }
     : { href: '/register?role=seller', label: 'Buka Lapak Mahasiswa' };
 
   return (
