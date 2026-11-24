@@ -26,17 +26,8 @@ export default async function SellerLayout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-ink flex flex-col lg:flex-row">
-      <SellerSidebar user={seller} store={store} newOrdersCount={newOrdersCount} />
-      <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
-        <main
-          id="main-content"
-          tabIndex={-1}
-          className="flex-1 bg-slate-50 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto outline-none"
-        >
-          {children}
-        </main>
-      </div>
-    </div>
+    <SellerSidebar user={seller} store={store} newOrdersCount={newOrdersCount}>
+      {children}
+    </SellerSidebar>
   );
 }

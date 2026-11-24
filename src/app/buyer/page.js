@@ -77,9 +77,6 @@ export default async function BuyerOverviewPage() {
               )}
             </p>
           </div>
-          <Button href="/products" variant="primary" size="md">
-            Jelajah Produk
-          </Button>
         </div>
 
         {/* KPI Summary Cards 3D */}

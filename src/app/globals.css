@@ -699,6 +699,7 @@
 /* Sticky sidebar reusable untuk layout multi-kolom (nonaktif di mobile/single-column < 1024px) */
 @media (min-width: 1024px) {
   .sticky-sidebar-panel,
+  .sticky-sidebar-dashboard,
   .sticky-sidebar-flush {
     position: sticky;
     align-self: flex-start;
@@ -713,23 +714,31 @@
     max-height: calc(100dvh - 6rem);
   }
 
+  .sticky-sidebar-dashboard {
+    top: 5rem;
+    height: calc(100dvh - 6.75rem);
+  }
+
   .sticky-sidebar-flush {
     top: 4rem;
     height: calc(100dvh - 4rem);
   }
 
   .sticky-sidebar-panel::-webkit-scrollbar,
+  .sticky-sidebar-dashboard::-webkit-scrollbar,
   .sticky-sidebar-flush::-webkit-scrollbar {
     width: 6px;
   }
 
   .sticky-sidebar-panel::-webkit-scrollbar-thumb,
+  .sticky-sidebar-dashboard::-webkit-scrollbar-thumb,
   .sticky-sidebar-flush::-webkit-scrollbar-thumb {
     background-color: var(--color-border-subtle);
     border-radius: 9999px;
   }
 
   .sticky-sidebar-panel::-webkit-scrollbar-track,
+  .sticky-sidebar-dashboard::-webkit-scrollbar-track,
   .sticky-sidebar-flush::-webkit-scrollbar-track {
     background: transparent;
   }

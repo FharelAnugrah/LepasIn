@@ -4,6 +4,7 @@ import {
   TrendingUp,
   Plus,
   Clock,
+  GraduationCap,
 } from 'lucide-react';
 import { query } from '@/lib/db';
 import { requireApprovedSeller } from '@/lib/auth';
@@ -73,8 +74,14 @@ export default async function SellerDashboardPage() {
           <h1 className="text-2xl font-bold text-ink tracking-tight">
             Ringkasan Lapak Mahasiswa
           </h1>
-          <p className="text-sm text-ink-muted mt-1">
-            Pantau stok barang kost dan kelola pesanan masuk dari teman sekampus.
+          <p className="text-sm text-ink-muted mt-1 flex flex-wrap items-center gap-2">
+            <span>Pantau stok barang kost dan kelola pesanan masuk dari teman sekampus.</span>
+            {seller.campus_short_name && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-brand-blue-soft text-brand-blue">
+                <GraduationCap className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>{seller.campus_short_name}</span>
+              </span>
+            )}
           </p>
         </div>
       </div>

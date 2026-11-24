@@ -7,17 +7,12 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   ShoppingCart,
   Search,
-  User,
-  LogOut,
   Store,
-  ShieldCheck,
   Package,
   Heart,
-  MapPin,
   Loader2,
   X,
   MessageCircle,
-  LayoutDashboard,
 } from 'lucide-react';
 import CampusSelector from '@/components/ui/CampusSelector';
 import AccessibilityControl from '@/components/ui/AccessibilityControl';
@@ -51,6 +46,7 @@ export default function Navbar({
   campuses = null,
   showSearchBar = true,
   showCampusSelector = true,
+  showUserMenu = true,
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -82,10 +78,6 @@ export default function Navbar({
     setPrevUrlQuery(urlQuery);
     setSearchQuery(urlQuery);
   }
-
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef(null);
-  const userMenuTriggerRef = useRef(null);
 
   const [liveResults, setLiveResults] = useState({ products: [], stores: [] });
   const [isLiveSearching, setIsLiveSearching] = useState(false);
@@ -120,22 +112,13 @@ export default function Navbar({
 
   useEffect(() => {
     function handleClickOutside(e) {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
-        setUserMenuOpen(false);
-      }
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
         setIsLiveDropdownOpen(false);
       }
     }
     function handleKeyDown(e) {
-      if (e.key === 'Escape') {
-        if (userMenuOpen) {
-          setUserMenuOpen(false);
-          userMenuTriggerRef.current?.focus();
-        }
-        if (isLiveDropdownOpen) {
-          setIsLiveDropdownOpen(false);
-        }
+      if (e.key === 'Escape' && isLiveDropdownOpen) {
+        setIsLiveDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -144,7 +127,7 @@ export default function Navbar({
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [userMenuOpen, isLiveDropdownOpen]);
+  }, [isLiveDropdownOpen]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -187,25 +170,52 @@ export default function Navbar({
     router.push(queryString ? `/products?${queryString}` : '/products');
   };
 
-  const handleLogout = async () => {
-    try {
-      const res = await fetch('/api/auth/logout', { method: 'POST' });
-      if (res.ok) {
-        setUserMenuOpen(false);
-        router.push('/login');
-        router.refresh();
-      }
-    } catch (err) {
-      console.error('Logout error:', err);
-    }
-  };
-
-  const sellerShortcutHref =
-    user?.role === 'seller'
+  const dashboardHref =
+    user?.role === 'admin'
+      ? '/admin'
+      : user?.role === 'seller'
       ? user.seller_status === 'approved'
         ? '/seller'
         : '/pending-seller'
-      : '/admin';
+      : '/buyer';
+
+  const dashboardLabel =
+    user?.role === 'admin'
+      ? 'Buka Dashboard Admin'
+      : user?.role === 'seller'
+      ? user.seller_status === 'approved'
+        ? 'Buka Dashboard Toko'
+        : 'Lihat Status Verifikasi Toko'
+      : 'Buka Dashboard Akun';
+
+  const userBadgeContent = user ? (
+    <>
+      {user.avatar_url ? (
+        <span className="relative w-7 h-7 rounded-lg overflow-hidden shrink-0 border border-border-subtle bg-surface-muted block">
+          <Image
+            src={user.avatar_url}
+            alt={user.name || 'Avatar'}
+            fill
+            unoptimized
+            className="object-cover"
+            sizes="28px"
+          />
+        </span>
+      ) : (
+        <span className="w-7 h-7 rounded-lg icon-plinth-navy text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
+          {user.name ? user.name.charAt(0) : 'U'}
+        </span>
+      )}
+      <span className="hidden lg:flex flex-col text-left">
+        <span className="text-xs font-semibold text-ink line-clamp-1 max-w-[110px]">
+          {user.name}
+        </span>
+        <span className="text-[11px] text-ink-muted capitalize leading-none">
+          {user.role}
+        </span>
+      </span>
+    </>
+  ) : null;
 
   return (
     <header className="sticky top-0 z-40 navbar-3d">
@@ -410,21 +420,6 @@ export default function Navbar({
             </>
           )}
 
-          {/* Tombol Pintas Seller / Admin */}
-          {user && (user.role === 'seller' || user.role === 'admin') && (
-            <Link
-              href={sellerShortcutHref}
-              className="hidden sm:inline-flex btn-3d btn-3d-navy items-center gap-1.5 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-semibold shrink-0"
-            >
-              {user.role === 'admin' ? (
-                <ShieldCheck className="w-4 h-4 text-campus-gold" aria-hidden="true" />
-              ) : (
-                <Store className="w-4 h-4 text-campus-gold" aria-hidden="true" />
-              )}
-              <span>{user.role === 'admin' ? 'Panel Admin' : 'Dashboard Toko'}</span>
-            </Link>
-          )}
-
           {/* Chat Koordinasi (akses utama menuju halaman Chat sesuai role pengguna) */}
           {user &&
             (user.role === 'buyer' ||
@@ -440,168 +435,20 @@ export default function Navbar({
             )}
 
           {user ? (
-            <div className="relative" ref={userMenuRef}>
-              <button
-                ref={userMenuTriggerRef}
-                type="button"
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
+            showUserMenu ? (
+              <Link
+                href={dashboardHref}
                 className="chip-3d flex items-center gap-2 min-h-[44px] md:min-h-[38px] px-2 lg:px-2.5 rounded-xl"
-                aria-expanded={userMenuOpen}
-                aria-haspopup="menu"
-                aria-label="Menu akun pengguna"
+                aria-label={dashboardLabel}
+                title={dashboardLabel}
               >
-                {user?.avatar_url ? (
-                  <span className="relative w-7 h-7 rounded-lg overflow-hidden shrink-0 border border-border-subtle bg-surface-muted block">
-                    <Image
-                      src={user.avatar_url}
-                      alt={user.name || 'Avatar'}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                      sizes="28px"
-                    />
-                  </span>
-                ) : (
-                  <span className="w-7 h-7 rounded-lg icon-plinth-navy text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
-                    {user.name ? user.name.charAt(0) : 'U'}
-                  </span>
-                )}
-                <span className="hidden lg:flex flex-col text-left">
-                  <span className="text-xs font-semibold text-ink line-clamp-1 max-w-[110px]">
-                    {user.name}
-                  </span>
-                  <span className="text-[11px] text-ink-muted capitalize leading-none">
-                    {user.role}
-                  </span>
-                </span>
-              </button>
-
-              {userMenuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40 bg-transparent md:hidden"
-                    onClick={() => setUserMenuOpen(false)}
-                    aria-hidden="true"
-                  />
-                  <div
-                    role="menu"
-                    className="absolute right-0 mt-2.5 w-[min(15.5rem,calc(100vw-1.5rem))] dropdown-3d rounded-2xl z-50 py-1.5 divide-y divide-border-subtle"
-                  >
-                    <div className="px-4 py-2.5">
-                      <p className="text-[11px] text-ink-muted">Masuk sebagai</p>
-                      <p className="text-xs font-bold text-ink truncate">{user.email}</p>
-                      {user.campus_name && (
-                        <p className="text-[11px] text-brand-blue font-semibold mt-1 truncate flex items-center gap-1">
-                          <MapPin className="w-3 h-3 shrink-0" aria-hidden="true" />
-                          <span>{user.campus_short_name || user.campus_name}</span>
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="py-1">
-                      {user.role === 'admin' && (
-                        <Link
-                          role="menuitem"
-                          href="/admin"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm text-ink hover:bg-canvas transition-colors font-medium"
-                        >
-                          <ShieldCheck className="w-4 h-4 text-brand-blue" aria-hidden="true" />
-                          <span>Dashboard Admin</span>
-                        </Link>
-                      )}
-
-                      {user.role === 'seller' && (
-                        <>
-                          <Link
-                            role="menuitem"
-                            href={user.seller_status === 'approved' ? '/seller' : '/pending-seller'}
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm text-ink hover:bg-canvas transition-colors font-medium"
-                          >
-                            <Store className="w-4 h-4 text-brand-blue" aria-hidden="true" />
-                            <span>Toko Saya</span>
-                          </Link>
-                          {user.seller_status === 'approved' && (
-                            <Link
-                              role="menuitem"
-                              href="/seller/orders"
-                              onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm text-ink-secondary hover:text-ink hover:bg-canvas transition-colors"
-                            >
-                              <Package className="w-4 h-4 text-ink-muted" aria-hidden="true" />
-                              <span>Pesanan Masuk</span>
-                            </Link>
-                          )}
-                        </>
-                      )}
-
-                      {user.role === 'buyer' && (
-                        <>
-                          <Link
-                            role="menuitem"
-                            href="/buyer"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm text-ink hover:bg-canvas transition-colors font-medium"
-                          >
-                            <LayoutDashboard className="w-4 h-4 text-brand-blue" aria-hidden="true" />
-                            <span>Ringkasan Akun</span>
-                          </Link>
-                          <Link
-                            role="menuitem"
-                            href="/buyer/orders"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm text-ink-secondary hover:text-ink hover:bg-canvas transition-colors"
-                          >
-                            <Package className="w-4 h-4 text-ink-muted" aria-hidden="true" />
-                            <span>Pesanan Saya</span>
-                          </Link>
-                          <Link
-                            role="menuitem"
-                            href="/buyer/wishlist"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm text-ink-secondary hover:text-ink hover:bg-canvas transition-colors"
-                          >
-                            <Heart className="w-4 h-4 text-danger-text" aria-hidden="true" />
-                            <span>Barang Favorit</span>
-                          </Link>
-                          <Link
-                            role="menuitem"
-                            href="/buyer/profile"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm text-ink-secondary hover:text-ink hover:bg-canvas transition-colors"
-                          >
-                            <User className="w-4 h-4 text-ink-muted" aria-hidden="true" />
-                            <span>Profil & Kampus</span>
-                          </Link>
-                          <Link
-                            role="menuitem"
-                            href="/buyer/addresses"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm text-ink-secondary hover:text-ink hover:bg-canvas transition-colors"
-                          >
-                            <MapPin className="w-4 h-4 text-ink-muted" aria-hidden="true" />
-                            <span>Alamat Kost</span>
-                          </Link>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="pt-1">
-                      <button
-                        role="menuitem"
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs md:text-sm text-danger-text hover:bg-danger-bg transition-colors font-semibold text-left"
-                      >
-                        <LogOut className="w-4 h-4" aria-hidden="true" />
-                        <span>Keluar</span>
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+                {userBadgeContent}
+              </Link>
+            ) : (
+              <div className="surface-3d flex items-center gap-2 min-h-[44px] md:min-h-[38px] px-2 lg:px-2.5 rounded-xl select-none cursor-default">
+                {userBadgeContent}
+              </div>
+            )
           ) : (
             /* Guest Actions 3D */
             <div className="flex items-center gap-1.5 sm:gap-2">
