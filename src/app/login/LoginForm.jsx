@@ -3,16 +3,38 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, KeyRound, Compass } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { validateEmail } from '@/lib/validation';
 
+function getSafeGuestHref(nextUrl) {
+  if (
+    typeof nextUrl !== 'string' ||
+    !nextUrl.startsWith('/') ||
+    nextUrl.startsWith('//') ||
+    nextUrl.startsWith('/\\')
+  ) {
+    return '/';
+  }
+  const pathOnly = nextUrl.split(/[?#]/)[0];
+  if (
+    pathOnly === '/' ||
+    pathOnly === '/products' ||
+    pathOnly.startsWith('/products/') ||
+    pathOnly.startsWith('/stores/')
+  ) {
+    return nextUrl;
+  }
+  return '/';
+}
+
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get('next') || '';
+  const guestHref = getSafeGuestHref(nextUrl);
   const toast = useToast();
 
   const [email, setEmail] = useState('');
@@ -197,7 +219,26 @@ export default function LoginForm() {
           </Button>
         </form>
 
-        <div className="text-center mt-6 pt-5 border-t border-border-subtle text-sm text-ink-muted">
+        <div className="my-4 flex items-center gap-3" aria-hidden="true">
+          <div className="h-px flex-1 bg-border-subtle" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+            atau
+          </span>
+          <div className="h-px flex-1 bg-border-subtle" />
+        </div>
+
+        <Button
+          href={guestHref}
+          variant="secondary"
+          size="md"
+          icon={Compass}
+          disabled={loading}
+          className="w-full rounded-xl"
+        >
+          Lanjutkan sebagai Tamu
+        </Button>
+
+        <div className="text-center mt-5 pt-4 border-t border-border-subtle text-sm text-ink-muted">
           Belum punya akun?{' '}
           <Link
             href="/register"
