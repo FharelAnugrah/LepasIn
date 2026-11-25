@@ -67,6 +67,7 @@ export default function CampusesManager({ initialCampuses }) {
       city: '',
       province: '',
       error: '',
+      fieldErrors: {},
       loading: false,
     });
   };
@@ -81,6 +82,7 @@ export default function CampusesManager({ initialCampuses }) {
       city: campus.city,
       province: campus.province,
       error: '',
+      fieldErrors: {},
       loading: false,
     });
   };
@@ -165,6 +167,7 @@ export default function CampusesManager({ initialCampuses }) {
         city: '',
         province: '',
         error: '',
+        fieldErrors: {},
         loading: false,
       });
       router.refresh();
@@ -411,6 +414,7 @@ export default function CampusesManager({ initialCampuses }) {
             city: '',
             province: '',
             error: '',
+            fieldErrors: {},
             loading: false,
           })
         }
@@ -430,6 +434,7 @@ export default function CampusesManager({ initialCampuses }) {
             id="campus-name"
             label="Nama Lengkap Kampus"
             placeholder="Contoh: Universitas Hasanuddin"
+            maxLength={150}
             value={modalState.name}
             onChange={(e) => {
               const val = e.target.value;
@@ -486,12 +491,14 @@ export default function CampusesManager({ initialCampuses }) {
                 }));
               }}
               error={modalState.fieldErrors?.short_name}
+              maxLength={20}
               required
             />
             <Input
               id="campus-city"
               label="Kota"
               placeholder="Contoh: Makassar"
+              maxLength={100}
               value={modalState.city}
               onChange={(e) => {
                 const val = e.target.value;
@@ -548,6 +555,7 @@ export default function CampusesManager({ initialCampuses }) {
               }));
             }}
             error={modalState.fieldErrors?.province}
+            maxLength={100}
             required
           />
 
@@ -571,6 +579,7 @@ export default function CampusesManager({ initialCampuses }) {
                   city: '',
                   province: '',
                   error: '',
+                  fieldErrors: {},
                   loading: false,
                 })
               }

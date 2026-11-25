@@ -1,9 +1,14 @@
 export const PRODUCT_NAME_MIN_LENGTH = 3;
 export const PRODUCT_NAME_MAX_LENGTH = 100;
+export const PRODUCT_MIN_PRICE = 1000;
+export const PRODUCT_MAX_PRICE = 100_000_000;
+export const PRODUCT_MAX_ORIGINAL_PRICE = 200_000_000;
 
 export const ALLOWED_PRODUCT_NAME_REGEX = /^[A-Za-z0-9 .,()&+\/|-]+$/;
 const ALLOWED_PRODUCT_NAME_CHAR_REGEX = /^[A-Za-z0-9 .,()&+\/|-]$/;
 const HAS_ALPHANUMERIC_REGEX = /[A-Za-z0-9]/;
+const CONSECUTIVE_PRODUCT_PUNCT_REGEX = /[.,\-_/|&]{2,}/;
+const SPACED_PRODUCT_SEPARATOR_REGEX = /[-,\/|&]\s+[-.,\/|&]/;
 
 const ALLOWED_CHARS_DESCRIPTION =
   'huruf (A-Z, a-z), angka (0-9), spasi, serta simbol - . , ( ) & + / |';
@@ -119,6 +124,31 @@ export function validateProductName(rawValue) {
       valid: false,
       code: 'TOO_LONG',
       error: `Nama barang maksimal ${PRODUCT_NAME_MAX_LENGTH} karakter.`,
+      normalizedName,
+    };
+  }
+
+  const alphaCount = (normalizedName.match(/[A-Za-z]/g) || []).length;
+  const alnumCount = (normalizedName.match(/[A-Za-z0-9]/g) || []).length;
+  if (alphaCount < 2 || alnumCount < 3) {
+    return {
+      valid: false,
+      code: 'MEANINGLESS_NAME',
+      error: 'Nama barang harus jelas (minimal memuat 2 huruf alfabet dan 3 huruf/angka).',
+      normalizedName,
+    };
+  }
+
+  if (
+    CONSECUTIVE_PRODUCT_PUNCT_REGEX.test(normalizedName) ||
+    SPACED_PRODUCT_SEPARATOR_REGEX.test(normalizedName) ||
+    /^[.,\-_/|&)]/.test(normalizedName) ||
+    /[-.,\/|&(]$/.test(normalizedName)
+  ) {
+    return {
+      valid: false,
+      code: 'INVALID_PUNCTUATION',
+      error: 'Nama barang tidak boleh memakai tanda baca berulang atau diawali/diakhiri simbol pemisah.',
       normalizedName,
     };
   }

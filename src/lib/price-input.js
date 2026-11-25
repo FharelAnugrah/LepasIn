@@ -1,3 +1,8 @@
+import {
+  PRODUCT_MIN_PRICE,
+  PRODUCT_MAX_ORIGINAL_PRICE,
+} from './product-validation.js';
+
 /**
  * Membersihkan input nominal harga sehingga hanya menyisakan digit angka bulat.
  *
@@ -81,9 +86,9 @@ export function getDiscountPercent(priceRaw, originalPriceRaw) {
   if (
     !Number.isFinite(price) ||
     !Number.isFinite(orig) ||
-    price < 1000 ||
+    price < PRODUCT_MIN_PRICE ||
     orig <= price ||
-    orig > 100_000_000
+    orig > PRODUCT_MAX_ORIGINAL_PRICE
   ) {
     return null;
   }

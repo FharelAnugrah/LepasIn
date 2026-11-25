@@ -4,6 +4,9 @@ import { query, withTransaction } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { extractAndProcessImages } from '@/lib/image-util';
 import {
+  PRODUCT_MIN_PRICE,
+  PRODUCT_MAX_PRICE,
+  PRODUCT_MAX_ORIGINAL_PRICE,
   createProductNameSchema,
   createProductImageUrlSchema,
 } from '@/lib/product-validation';
@@ -33,8 +36,8 @@ const updatePriceValidator = z
     z
       .number({ invalid_type_error: 'Harga barang harus berupa angka positif minimal Rp1.000.' })
       .int('Harga barang harus berupa angka positif minimal Rp1.000.')
-      .min(1000, 'Harga barang harus berupa angka positif minimal Rp1.000.')
-      .max(100000000, 'Harga lepas maksimal Rp 100.000.000.')
+      .min(PRODUCT_MIN_PRICE, 'Harga barang harus berupa angka positif minimal Rp1.000.')
+      .max(PRODUCT_MAX_PRICE, 'Harga lepas maksimal Rp 100.000.000.')
       .optional()
   );
 
@@ -57,8 +60,8 @@ const updateOriginalPriceValidator = z
     z
       .number({ invalid_type_error: 'Harga coret harus berupa angka.' })
       .int('Harga coret harus berupa angka bulat.')
-      .min(1000, 'Harga coret minimal Rp 1.000 dan tidak boleh bernilai Rp 0.')
-      .max(100000000, 'Harga coret maksimal Rp 100.000.000.')
+      .min(PRODUCT_MIN_PRICE, 'Harga coret minimal Rp 1.000 dan tidak boleh bernilai Rp 0.')
+      .max(PRODUCT_MAX_ORIGINAL_PRICE, 'Harga coret maksimal Rp 200.000.000.')
       .optional()
       .nullable()
   );

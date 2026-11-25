@@ -12,6 +12,9 @@ import { useToast } from '@/components/ui/Toast';
 import {
   PRODUCT_NAME_MIN_LENGTH,
   PRODUCT_NAME_MAX_LENGTH,
+  PRODUCT_MIN_PRICE,
+  PRODUCT_MAX_PRICE,
+  PRODUCT_MAX_ORIGINAL_PRICE,
   normalizeProductName,
   validateProductName,
   validateProductImageUrl,
@@ -22,9 +25,13 @@ import { formatRupiahScaleHint, getDiscountPercent } from '@/lib/price-input';
 const VALID_CONDITIONS = ['like_new', 'good', 'fair', 'minor_defect'];
 
 /**
- * Validasi nominal harga Rupiah bulat (tanpa awalan 0, Rp 1.000 - Rp 100.000.000).
+ * Validasi nominal harga Rupiah bulat (tanpa awalan 0, minimal Rp 1.000 hingga batas maksimum field).
  */
-function validateRupiahField(rawValue, label, { required = false } = {}) {
+function validateRupiahField(
+  rawValue,
+  label,
+  { required = false, maxAmount = PRODUCT_MAX_PRICE, maxLabel = 'Rp 100.000.000' } = {}
+) {
   const str = String(rawValue ?? '').trim();
   if (!str) {
     return { error: required ? 'Harga barang minimal Rp1.000.' : null, str: '' };
@@ -39,11 +46,11 @@ function validateRupiahField(rawValue, label, { required = false } = {}) {
     return { error: `${label} harus berupa angka bulat tanpa titik atau koma.`, str };
   }
   const num = Number(str);
-  if (num < 1000) {
+  if (num < PRODUCT_MIN_PRICE) {
     return { error: 'Harga barang minimal Rp1.000.', str };
   }
-  if (num > 100000000) {
-    return { error: `${label} maksimal Rp 100.000.000.`, str };
+  if (num > maxAmount) {
+    return { error: `${label} maksimal ${maxLabel}.`, str };
   }
   return { error: null, str, num };
 }
@@ -112,7 +119,11 @@ function validateProductFields({
     newErrors.price = [priceCheck.error];
   }
 
-  const origCheck = validateRupiahField(originalPrice, 'Harga coret', { required: false });
+  const origCheck = validateRupiahField(originalPrice, 'Harga coret', {
+    required: false,
+    maxAmount: PRODUCT_MAX_ORIGINAL_PRICE,
+    maxLabel: 'Rp 200.000.000',
+  });
   if (origCheck.error) {
     newErrors.original_price = [origCheck.error];
   } else if (origCheck.str && !newErrors.price && origCheck.num <= priceCheck.num) {
@@ -208,7 +219,13 @@ export default function ProductForm({
   const handleNameChange = (e) => {
     const nextValue = e.target.value;
     setName(nextValue);
-    clearFieldError('name');
+    if (nameTouched || errors.name) {
+      const liveCheck = validateProductName(nextValue);
+      setErrors((prev) => ({
+        ...prev,
+        name: liveCheck.valid ? undefined : [liveCheck.error],
+      }));
+    }
   };
 
   const handleNameBlur = () => {
@@ -328,8 +345,12 @@ export default function ProductForm({
 
   const priceHelper = priceScaleHint || 'Minimal Rp 1.000, maks. Rp 100 juta';
 
-  const isPriceNumeric = /^\d+$/.test(price) && !/^0\d+/.test(price) && Number(price) >= 1000 && Number(price) <= 100_000_000;
-  let originalPriceHelper = 'Akan ditampilkan sebagai harga coret';
+  const isPriceNumeric =
+    /^\d+$/.test(price) &&
+    !/^0\d+/.test(price) &&
+    Number(price) >= PRODUCT_MIN_PRICE &&
+    Number(price) <= PRODUCT_MAX_PRICE;
+  let originalPriceHelper = 'Akan ditampilkan sebagai harga coret (maks. Rp 200 juta)';
   if (originalPriceScaleHint) {
     if (discountPercent !== null) {
       originalPriceHelper = (
@@ -341,6 +362,8 @@ export default function ProductForm({
           </span>
         </span>
       );
+    } else if (Number(originalPrice) > PRODUCT_MAX_ORIGINAL_PRICE) {
+      originalPriceHelper = `${originalPriceScaleHint} • Maksimal Rp 200 juta`;
     } else if (isPriceNumeric && Number(originalPrice) <= Number(price)) {
       originalPriceHelper = `${originalPriceScaleHint} • Harus lebih besar dari harga lepas`;
     } else {
@@ -403,6 +426,7 @@ export default function ProductForm({
                   error={errors.name?.[0]}
                   helperText={`${name.trim().length}/${PRODUCT_NAME_MAX_LENGTH} karakter`}
                   minLength={PRODUCT_NAME_MIN_LENGTH}
+                  maxLength={PRODUCT_NAME_MAX_LENGTH}
                   required
                 />
 

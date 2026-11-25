@@ -15,12 +15,21 @@ export const CITY_PROVINCE_REGEX = /^[a-zA-Z\s'.-]+$/;
 export const CATEGORY_NAME_REGEX = /^[a-zA-Z0-9\s&'.,\-_/]+$/;
 export const PASSWORD_ALLOWED_REGEX = /^[a-zA-Z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~`\s]+$/;
 
+const CONSECUTIVE_PUNCT_REGEX = /[&'.,\-_/|]{2,}/;
+
+function countLetters(str) {
+  return (str.match(/[a-zA-Z]/g) || []).length;
+}
+
+function countAlnum(str) {
+  return (str.match(/[a-zA-Z0-9]/g) || []).length;
+}
+
 /**
  * Validasi Nama Lengkap:
  * - Hanya huruf alfabet (A-Z, a-z), spasi, tanda apostrof ('), dan titik (.).
- * - Tidak boleh hanya berisi spasi, titik, atau apostrof (harus ada minimal satu huruf).
- * - Tidak boleh memuat angka, simbol selain apostrof dan titik, emoji, atau karakter khusus lainnya.
- * - Minimal 3 karakter, maksimal 100 karakter.
+ * - Minimal 3 karakter, maksimal 100 karakter, minimal 2 huruf alfabet.
+ * - Tidak boleh diawali tanda baca atau memiliki tanda baca berulang.
  */
 export function validateFullName(value) {
   if (value === undefined || value === null) {
@@ -39,6 +48,13 @@ export function validateFullName(value) {
   }
   if (!FULL_NAME_REGEX.test(trimmed) || !/[a-zA-Z]/.test(trimmed)) {
     return 'Nama hanya boleh menggunakan huruf alfabet, spasi, titik, dan tanda petik.';
+  }
+  if (
+    countLetters(trimmed) < 2 ||
+    /[.']{2,}/.test(trimmed) ||
+    !/^[a-zA-Z].*[a-zA-Z.]$/.test(trimmed)
+  ) {
+    return 'Nama lengkap harus diawali huruf, memuat minimal 2 huruf alfabet, dan tanpa tanda baca berulang.';
   }
   return null;
 }
@@ -151,8 +167,16 @@ export function validateStoreName(value) {
   if (trimmed.length > 100) {
     return 'Nama toko maksimal 100 karakter.';
   }
-  if (!/[a-zA-Z]/.test(trimmed) || !STORE_NAME_REGEX.test(trimmed)) {
+  if (!STORE_NAME_REGEX.test(trimmed)) {
     return 'Nama toko wajib diisi (minimal 3 karakter, tidak menggunakan karakter khusus).';
+  }
+  if (
+    countLetters(trimmed) < 2 ||
+    countAlnum(trimmed) < 3 ||
+    CONSECUTIVE_PUNCT_REGEX.test(trimmed) ||
+    !/^[a-zA-Z0-9].*[a-zA-Z0-9]$/.test(trimmed)
+  ) {
+    return 'Nama toko harus jelas (minimal memuat 2 huruf & 3 huruf/angka, tanpa tanda baca berulang atau simbol di ujung).';
   }
   return null;
 }
@@ -167,6 +191,12 @@ export function validateStoreDescription(value) {
   const trimmed = String(value).trim();
   if (!trimmed || trimmed.length < 10) {
     return 'Deskripsi singkat tokomu wajib diisi (minimal 10 karakter).';
+  }
+  if (trimmed.length > 1000) {
+    return 'Deskripsi singkat toko maksimal 1.000 karakter.';
+  }
+  if (countLetters(trimmed) < 5) {
+    return 'Deskripsi singkat toko harus memuat minimal 5 huruf alfabet yang jelas.';
   }
   return null;
 }
@@ -185,8 +215,16 @@ export function validateLocation(value) {
   if (trimmed.length > 150) {
     return 'Detail lokasi maksimal 150 karakter.';
   }
-  if (!/[a-zA-Z]/.test(trimmed) || !LOCATION_REGEX.test(trimmed)) {
+  if (!LOCATION_REGEX.test(trimmed)) {
     return 'Detail lokasi memuat simbol yang tidak diperbolehkan.';
+  }
+  if (
+    countLetters(trimmed) < 3 ||
+    countAlnum(trimmed) < 4 ||
+    CONSECUTIVE_PUNCT_REGEX.test(trimmed) ||
+    !/^[a-zA-Z0-9(].*[a-zA-Z0-9.)]$/.test(trimmed)
+  ) {
+    return 'Detail lokasi harus jelas (minimal 3 huruf alfabet, tanpa tanda baca berulang atau simbol pemisah di ujung).';
   }
   return null;
 }
@@ -208,17 +246,23 @@ export function validateCampusName(value) {
   if (trimmed.length > 150) {
     return 'Nama kampus maksimal 150 karakter.';
   }
-  if (!/[a-zA-Z]/.test(trimmed)) {
-    return 'Nama kampus harus memuat huruf alfabet.';
-  }
   if (!CAMPUS_NAME_REGEX.test(trimmed)) {
     return 'Nama kampus memuat karakter yang tidak diperbolehkan.';
+  }
+  if (countLetters(trimmed) < 3 || countAlnum(trimmed) < 3) {
+    return 'Nama kampus harus memuat minimal 3 huruf alfabet.';
+  }
+  if (
+    CONSECUTIVE_PUNCT_REGEX.test(trimmed) ||
+    !/^[a-zA-Z].*[a-zA-Z0-9)]$/.test(trimmed)
+  ) {
+    return 'Nama kampus harus diawali huruf, tanpa tanda baca berulang atau simbol pemisah di akhir.';
   }
   return null;
 }
 
 /**
- * Validasi Singkatan / Kode Kampus (misal: UNHAS, UI, ITB)
+ * Validasi Singkatan / Kode Kampus (misal: UNHAS, UI, ITB, TEL-U)
  */
 export function validateCampusShortName(value) {
   if (value === undefined || value === null) {
@@ -236,6 +280,12 @@ export function validateCampusShortName(value) {
   }
   if (!CAMPUS_SHORT_NAME_REGEX.test(trimmed)) {
     return 'Singkatan kampus hanya boleh huruf, angka, dan tanda hubung.';
+  }
+  if (countLetters(trimmed) < 2) {
+    return 'Singkatan kampus harus memuat minimal 2 huruf alfabet (tidak boleh hanya angka/simbol).';
+  }
+  if (/[-_]{2,}/.test(trimmed) || !/^[a-zA-Z0-9].*[a-zA-Z0-9]$/.test(trimmed)) {
+    return 'Singkatan kampus harus diawali dan diakhiri huruf/angka tanpa tanda hubung berulang.';
   }
   return null;
 }
@@ -260,6 +310,12 @@ export function validateCityOrProvince(value, label = 'Kota') {
   if (!CITY_PROVINCE_REGEX.test(trimmed)) {
     return `${label} hanya boleh menggunakan huruf, spasi, titik, dan tanda hubung.`;
   }
+  if (countLetters(trimmed) < 3) {
+    return `${label} harus memuat minimal 3 huruf alfabet.`;
+  }
+  if (/['.-]{2,}/.test(trimmed) || !/^[a-zA-Z].*[a-zA-Z]$/.test(trimmed)) {
+    return `${label} harus diawali dan diakhiri huruf tanpa tanda baca berulang.`;
+  }
   return null;
 }
 
@@ -280,11 +336,14 @@ export function validateCategoryName(value) {
   if (trimmed.length > 50) {
     return 'Nama kategori maksimal 50 karakter.';
   }
-  if (!/[a-zA-Z]/.test(trimmed)) {
-    return 'Nama kategori harus memuat huruf alfabet.';
-  }
   if (!CATEGORY_NAME_REGEX.test(trimmed)) {
     return 'Nama kategori memuat simbol yang tidak diperbolehkan.';
+  }
+  if (countLetters(trimmed) < 2) {
+    return 'Nama kategori harus memuat minimal 2 huruf alfabet.';
+  }
+  if (CONSECUTIVE_PUNCT_REGEX.test(trimmed) || !/^[a-zA-Z0-9].*[a-zA-Z0-9]$/.test(trimmed)) {
+    return 'Nama kategori tidak boleh diawali/diakhiri simbol atau memakai tanda baca berulang.';
   }
   return null;
 }

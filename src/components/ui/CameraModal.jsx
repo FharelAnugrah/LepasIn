@@ -7,6 +7,11 @@ import Button from '@/components/ui/Button';
 export default function CameraModal({ isOpen, onClose, onCapture }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const isOpenRef = useRef(isOpen);
+  const startRequestIdRef = useRef(0);
+  const facingModeRef = useRef('user');
+  const previewUrlRef = useRef(null);
+  const noticeTimerRef = useRef(null);
 
   const [capturedBlob, setCapturedBlob] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -15,12 +20,27 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [streamReady, setStreamReady] = useState(false);
   const [switchNotice, setSwitchNotice] = useState(null);
+
+  const showTemporaryNotice = useCallback((message, duration = 2000) => {
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+    }
+    setSwitchNotice(message);
+    noticeTimerRef.current = setTimeout(() => {
+      setSwitchNotice(null);
+      noticeTimerRef.current = null;
+    }, duration);
+  }, []);
 
   const stopStream = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
   }, []);
 
@@ -74,15 +94,30 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
 
   const startCamera = useCallback(
     async (mode) => {
+      const reqId = ++startRequestIdRef.current;
       stopStream();
+      setStreamReady(false);
       setCameraError(null);
+
+      if (typeof window !== 'undefined' && !window.isSecureContext) {
+        setLoading(false);
+        setCameraError(
+          'Kamera web langsung hanya aktif di koneksi HTTPS atau localhost. Kamu tetap bisa memilih foto lewat tombol "Buka Galeri Perangkat" di bawah atau "Pilih dari Galeri".'
+        );
+        return;
+      }
+
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setLoading(false);
+        setCameraError(
+          'Browser ini belum mendukung kamera web langsung. Silakan gunakan tombol "Buka Galeri Perangkat" di bawah atau "Pilih dari Galeri".'
+        );
+        return;
+      }
+
       setLoading(true);
 
       try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('Kamera tidak didukung oleh browser ini.');
-        }
-
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: mode },
@@ -92,6 +127,12 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
           audio: false,
         });
 
+        // Cegah kebocoran stream kamera jika modal ditutup atau mode diubah saat menunggu izin
+        if (!isOpenRef.current || reqId !== startRequestIdRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -100,35 +141,61 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
 
         try {
           const devices = await navigator.mediaDevices.enumerateDevices();
-          checkCameraConfiguration(stream, devices);
+          if (isOpenRef.current && reqId === startRequestIdRef.current) {
+            checkCameraConfiguration(stream, devices);
+          }
         } catch (enumErr) {
           console.warn('Gagal membaca enumerateDevices:', enumErr);
         }
       } catch (err) {
-        console.error('Camera access error:', err);
-        setCameraError(
-          err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'
-            ? 'Izin akses kamera ditolak. Silakan izinkan akses kamera di pengaturan browser.'
-            : 'Tidak dapat mengakses kamera perangkat. Silakan gunakan opsi Pilih dari Galeri.'
-        );
+        if (!isOpenRef.current || reqId !== startRequestIdRef.current) {
+          return;
+        }
+        console.warn('Camera access unavailable:', err?.name || err?.message);
+        const errName = err?.name || '';
+        let message =
+          'Tidak dapat mengakses kamera perangkat. Silakan gunakan opsi "Buka Galeri Perangkat" atau "Pilih dari Galeri".';
+        if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+          message = 'Izin akses kamera ditolak. Silakan izinkan akses kamera di pengaturan browser.';
+        } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+          message =
+            'Kamera tidak ditemukan pada perangkat ini. Silakan gunakan tombol "Buka Galeri Perangkat" atau "Pilih dari Galeri".';
+        } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+          message =
+            'Kamera sedang digunakan oleh aplikasi lain. Tutup aplikasi tersebut atau gunakan "Pilih dari Galeri".';
+        }
+        setCameraError(message);
         setLoading(false);
       }
     },
     [stopStream, checkCameraConfiguration]
   );
 
+  const revokePreviewUrl = useCallback(() => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setPreviewUrl(null);
+  }, []);
+
   const handleClose = useCallback(() => {
+    startRequestIdRef.current += 1;
+    isOpenRef.current = false;
     stopStream();
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
+    revokePreviewUrl();
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
     }
     setCapturedBlob(null);
     setCameraError(null);
+    setStreamReady(false);
     setSwitchNotice(null);
+    facingModeRef.current = 'user';
     setFacingMode('user');
     onClose();
-  }, [stopStream, previewUrl, onClose]);
+  }, [stopStream, revokePreviewUrl, onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -143,57 +210,70 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
   }, [isOpen, handleClose]);
 
   useEffect(() => {
-    let timer = null;
-    if (isOpen && !capturedBlob) {
-      timer = setTimeout(() => {
-        startCamera('user');
-      }, 0);
-    } else {
+    isOpenRef.current = isOpen;
+    if (!isOpen) {
+      startRequestIdRef.current += 1;
       stopStream();
+      return;
     }
 
+    const timer = setTimeout(() => {
+      startCamera(facingModeRef.current);
+    }, 0);
+
     return () => {
-      if (timer) clearTimeout(timer);
+      clearTimeout(timer);
+      startRequestIdRef.current += 1;
       stopStream();
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
+    };
+  }, [isOpen, startCamera, stopStream]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
+      if (noticeTimerRef.current) {
+        clearTimeout(noticeTimerRef.current);
+        noticeTimerRef.current = null;
       }
     };
-  }, [isOpen, capturedBlob, startCamera, stopStream, previewUrl]);
+  }, []);
 
   const handleToggleCamera = () => {
     if (!hasMultipleCameras) {
-      setSwitchNotice('Perangkat Anda hanya memiliki 1 kamera aktif.');
-      setTimeout(() => setSwitchNotice(null), 2500);
+      showTemporaryNotice('Perangkat Anda hanya memiliki 1 kamera aktif.', 2500);
       return;
     }
 
     const nextMode = facingMode === 'user' ? 'environment' : 'user';
+    facingModeRef.current = nextMode;
     setFacingMode(nextMode);
     startCamera(nextMode);
-    setSwitchNotice(
-      nextMode === 'user'
-        ? 'Beralih ke Kamera Depan'
-        : 'Beralih ke Kamera Belakang'
+    showTemporaryNotice(
+      nextMode === 'user' ? 'Beralih ke Kamera Depan' : 'Beralih ke Kamera Belakang',
+      2000
     );
-    setTimeout(() => setSwitchNotice(null), 2000);
   };
 
   const isMirrored = !hasMultipleCameras || facingMode === 'user';
 
   const handleTakePhoto = () => {
-    if (!videoRef.current) return;
-
     const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) return;
+
     const canvas = document.createElement('canvas');
     const maxW = 1280;
-    const rawW = video.videoWidth || 1280;
-    const rawH = video.videoHeight || 720;
+    const rawW = video.videoWidth;
+    const rawH = video.videoHeight;
     const scale = rawW > maxW ? maxW / rawW : 1;
     canvas.width = Math.round(rawW * scale);
     canvas.height = Math.round(rawH * scale);
 
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
     if (isMirrored) {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
@@ -204,9 +284,12 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
     canvas.toBlob(
       (blob) => {
         if (!blob) return;
-        setCapturedBlob(blob);
+        revokePreviewUrl();
         const url = URL.createObjectURL(blob);
+        previewUrlRef.current = url;
+        setCapturedBlob(blob);
         setPreviewUrl(url);
+        setStreamReady(false);
         stopStream();
       },
       'image/jpeg',
@@ -215,12 +298,9 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
   };
 
   const handleRetake = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
+    revokePreviewUrl();
     setCapturedBlob(null);
-    startCamera(facingMode);
+    startCamera(facingModeRef.current);
   };
 
   const handleConfirmPhoto = () => {
@@ -234,6 +314,7 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
 
   const handleNativeFallback = (e) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (file) {
       onCapture(file);
       handleClose();
@@ -296,10 +377,10 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
               </p>
               <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg bg-brand-blue text-white text-xs font-semibold hover:bg-brand-blue-hover transition-colors mt-2">
                 <Camera className="w-4 h-4" aria-hidden="true" />
-                <span>Buka Kamera Perangkat</span>
+                <span>Buka Galeri Perangkat</span>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/jpg"
+                  accept="image/jpeg,image/png,image/webp"
                   capture={facingMode}
                   className="hidden"
                   onChange={handleNativeFallback}
@@ -322,6 +403,7 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
                 autoPlay
                 playsInline
                 muted
+                onLoadedMetadata={() => setStreamReady(true)}
                 className={`w-full h-full object-cover ${
                   isMirrored ? 'scale-x-[-1]' : ''
                 }`}
@@ -383,9 +465,9 @@ export default function CameraModal({ isOpen, onClose, onCapture }) {
               <button
                 type="button"
                 onClick={handleTakePhoto}
-                disabled={loading}
+                disabled={loading || !streamReady}
                 aria-label="Jepret Foto"
-                className="w-14 h-14 rounded-full bg-white ring-4 ring-brand-blue flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                className="w-14 h-14 rounded-full bg-white ring-4 ring-brand-blue flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-transform"
               >
                 <span className="w-5 h-5 rounded-full bg-brand-blue" />
               </button>
