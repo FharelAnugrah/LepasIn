@@ -171,24 +171,7 @@ LepasIn/
 ├── .env.example                     # Contoh variabel environment
 ├── next.config.mjs                  # Konfigurasi allowedDevOrigins LAN & Turbopack
 └── package.json                     # Dependensi & skrip npm
-```
 
-</details>
-
-<details>
-<summary><strong>3. Checklist Verifikasi Alur &amp; Catatan Pemecahan Masalah</strong></summary>
-
-<br />
-
-Gunakan daftar periksa interaktif ini bila menguji aplikasi secara menyeluruh sebelum presentasi/deploy:
-
-- [ ] **Akses Tamu**: Buka `/login`, klik **Lanjutkan sebagai Tamu**, lalu jelajahi beranda (`/`), `/products`, filter kampus, dan detail produk tanpa dipaksa login.
-- [ ] **Checkout Pembeli**: Masuk sebagai `andi@lepasin.id`, pilih item per toko di `/buyer/cart`, lanjutkan checkout, dan konfirmasi penerimaan pada pesanan aktif.
-- [ ] **Verifikasi & Penangguhan Seller**: Masuk sebagai `admin@lepasin.id` di `/admin/sellers`, uji persetujuan/penolakan ber-alasan pada akun `pending`, lalu uji **Tangguhkan Toko** pada seller `approved` dan cek pop-up CS WhatsApp saat seller tersebut login.
-- [ ] **Proteksi Penghapusan Relasi**: Uji tombol hapus kategori atau kampus yang masih memiliki produk/pengguna aktif di `/admin/categories` & `/admin/campuses` untuk memastikan modal proteksi muncul.
-- [ ] **Akses Kamera via Jaringan Lokal (HTTP)**: Fitur *live stream* kamera di browser (`navigator.mediaDevices.getUserMedia`) hanya diizinkan pada konteks aman (`localhost` atau `HTTPS`). Jika mengakses dari HP lewat alamat IP LAN `http://<IP>:3000`, gunakan tombol fallback **Buka Kamera Perangkat** atau **Pilih dari Galeri** di dalam `CameraModal`.
-
-</details>
 
 ---
 
