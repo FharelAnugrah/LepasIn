@@ -14,18 +14,34 @@ import {
   Eye,
   CreditCard,
   X,
+  MessageCircle,
+  AlertTriangle,
+  Phone,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { normalizePhoneNumber } from '@/lib/validation';
 
-export default function PendingSellerClient({ user }) {
+function buildWhatsAppUrl(phone, user) {
+  const cleaned = normalizePhoneNumber(phone);
+  if (!cleaned) return null;
+  const intl = cleaned.startsWith('0') ? `62${cleaned.slice(1)}` : cleaned;
+  const message = `Halo CS Admin LepasIn, saya ${user.name} (${user.email}) pemilik toko "${
+    user.store_name || '-'
+  }" ingin mengklarifikasi status penangguhan akun toko saya.`;
+  return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`;
+}
+
+export default function PendingSellerClient({ user, csWhatsapp = '' }) {
   const router = useRouter();
   const toast = useToast();
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
 
   const isRejected = user.seller_status === 'rejected';
@@ -34,6 +50,16 @@ export default function PendingSellerClient({ user }) {
   );
   const isSuspended = isRejected && wasPreviouslyApproved;
   const isInitialRejected = isRejected && !wasPreviouslyApproved;
+
+  const [showSuspendedModal, setShowSuspendedModal] = useState(isSuspended);
+  const [prevIsSuspended, setPrevIsSuspended] = useState(isSuspended);
+  if (isSuspended !== prevIsSuspended) {
+    setPrevIsSuspended(isSuspended);
+    setShowSuspendedModal(isSuspended);
+  }
+
+  const csPhoneDisplay = normalizePhoneNumber(csWhatsapp) || csWhatsapp || '';
+  const csWhatsappUrl = buildWhatsAppUrl(csWhatsapp, user);
 
   useEffect(() => {
     if (!viewingPhoto) return;
@@ -48,30 +74,43 @@ export default function PendingSellerClient({ user }) {
     setRefreshing(true);
     try {
       const res = await fetch('/api/auth/refresh-session', { method: 'POST' });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || 'Gagal memeriksa status akun terbaru');
+        setRefreshing(false);
+        return;
+      }
       if (data?.user?.sellerStatus === 'approved') {
         toast.success('Selamat, toko Anda telah disetujui admin.');
         router.push('/seller');
         router.refresh();
         return;
       }
+      router.refresh();
+      toast.info('Status akun telah diperbarui.');
     } catch (err) {
       console.error('Refresh session error:', err);
-    }
-    router.refresh();
-    setTimeout(() => {
+      toast.error('Gagal menghubungi server. Silakan coba lagi.');
+    } finally {
       setRefreshing(false);
-      toast.info('Status akun diperbarui');
-    }, 600);
+    }
   };
 
   const handleLogout = async () => {
+    setIsLoggingOut(true);
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!res.ok) {
+        toast.error('Gagal keluar dari akun');
+        setIsLoggingOut(false);
+        return;
+      }
       router.push('/login');
       router.refresh();
     } catch (err) {
       console.error(err);
+      toast.error('Terjadi kesalahan jaringan saat keluar');
+      setIsLoggingOut(false);
     }
   };
 
@@ -105,16 +144,42 @@ export default function PendingSellerClient({ user }) {
   };
 
   return (
-    <div className="max-w-lg mx-auto mt-12">
-      <div className="surface-3d rounded-3xl p-8 text-center">
-        <div className="mb-5">
-          <span className="inline-flex items-baseline font-extrabold text-xl text-navy-900 tracking-tight">
+    <div className="max-w-lg mx-auto mt-2 sm:mt-4">
+      <div className="surface-3d rounded-3xl p-5 sm:p-8 text-center">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            aria-label="Keluar dari akun"
+            className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[38px] px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-ink-secondary hover:text-danger-text hover:bg-danger-bg transition-colors disabled:opacity-60 disabled:pointer-events-none whitespace-nowrap focus-visible:outline-2 focus-visible:outline-brand-blue focus-visible:outline-offset-2"
+          >
+            <LogOut className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <span>Keluar</span>
+          </button>
+
+          <span className="inline-flex items-baseline font-extrabold text-lg sm:text-xl text-navy-900 tracking-tight whitespace-nowrap">
             <span>LepasIn</span>
             <span
               className="w-2 h-2 rounded-[4px] bg-campus-gold inline-block ml-0.5 mb-0.5 shadow-[0_2px_0_#B87D04]"
               aria-hidden="true"
             />
           </span>
+
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            aria-busy={refreshing}
+            aria-label="Refresh status verifikasi"
+            className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[38px] px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-brand-blue hover:bg-brand-blue-soft transition-colors disabled:opacity-60 disabled:pointer-events-none whitespace-nowrap focus-visible:outline-2 focus-visible:outline-brand-blue focus-visible:outline-offset-2"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 shrink-0 ${refreshing ? 'motion-safe:animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+            <span>Refresh</span>
+          </button>
         </div>
 
         {/* Ikon Status 3D */}
@@ -143,7 +208,7 @@ export default function PendingSellerClient({ user }) {
 
         <p className="text-sm text-ink-secondary leading-relaxed mb-6">
           {isSuspended
-            ? 'Akses toko dan operasional tokomu telah ditangguhkan oleh admin LepasIn. Etalase produk tokomu saat ini disembunyikan dari katalog publik.'
+            ? ''
             : isInitialRejected
             ? 'Pengajuan pendaftaran tokomu belum memenuhi syarat verifikasi penjual LepasIn. Kamu dapat menghapus pengajuan ini untuk mendaftar ulang dengan data KTM yang valid.'
             : 'Admin LepasIn sedang memeriksa identitas dan data tokomu agar jual beli antarMahasiswa sekampus tetap aman dan terpercaya.'}
@@ -152,21 +217,37 @@ export default function PendingSellerClient({ user }) {
         {isRejected && (
           <div className="p-4 mb-6 rounded-xl bg-danger-bg border border-red-200 text-left flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 text-danger-text shrink-0 mt-0.5" aria-hidden="true" />
-            <div className="text-xs leading-relaxed">
+            <div className="text-xs leading-relaxed min-w-0">
               <p className="font-bold text-danger-text">
-                {isSuspended ? 'Penangguhan Aktif' : 'Verifikasi Tidak Lolos'}
+                {isSuspended ? 'Penangguhan Aktif' : 'Alasan Penolakan dari Admin'}
               </p>
-              <p className="text-ink-secondary mt-0.5">
+              <p className="text-ink mt-1 break-words font-medium">
                 {isSuspended
-                  ? 'Hubungi admin LepasIn untuk klarifikasi, atau hapus akun untuk membersihkan seluruh data toko.'
-                  : 'Pastikan foto selfie bersama KTM terlihat jelas dan data kampus sesuai saat mendaftar ulang.'}
+                  ? 'Toko kamu sedang dibekukan sementara. Silakan hubungi Customer Service (WhatsApp Admin) untuk klarifikasi dan aktivasi kembali.'
+                  : user.rejection_reason ||
+                    'Pastikan foto selfie bersama KTM terlihat jelas dan data kampus sesuai saat mendaftar ulang.'}
               </p>
+              {isInitialRejected && (
+                <p className="text-ink-muted mt-1.5">
+                  Keputusan pengajuan ini bersifat final. Kamu dapat menghapus akun ini terlebih dahulu
+                  lalu mendaftar ulang dengan data yang telah diperbaiki.
+                </p>
+              )}
+              {isSuspended && csPhoneDisplay && (
+                <p className="text-ink-secondary mt-1.5 tabular-nums">
+                  WhatsApp CS Admin: <strong className="text-ink">{csPhoneDisplay}</strong>
+                </p>
+              )}
             </div>
           </div>
         )}
 
         {/* Ringkasan Nama Toko & Kampus Terdaftar (design2.md 5.8) */}
-        <div className="p-4 rounded-xl bg-canvas border border-border-subtle text-left flex flex-col gap-2.5 mb-6 text-xs">
+        <div
+          className={`p-4 rounded-xl bg-canvas border border-border-subtle text-left flex flex-col gap-2.5 text-xs ${
+            user.id_card_url ? 'mb-4' : isRejected ? 'mb-6' : ''
+          }`}
+        >
           <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2">
             <span className="text-ink-muted">Nama Penjual</span>
             <span className="font-semibold text-ink">{user.name}</span>
@@ -200,89 +281,37 @@ export default function PendingSellerClient({ user }) {
         </div>
 
         {/* Lampiran Foto Verifikasi */}
-        {user.id_card_url && (
-          <div className="p-3 rounded-xl bg-canvas border border-border-subtle text-left flex items-center justify-between gap-3 mb-6">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <button
-                type="button"
-                onClick={() => setViewingPhoto(true)}
-                className="relative w-11 h-11 rounded-lg overflow-hidden border border-border-subtle shrink-0"
-                aria-label="Lihat foto verifikasi KTM"
+       
+
+        {/* Tombol Aksi Utama (Saat Ditolak / Ditangguhkan) */}
+        {isRejected && (
+          <div
+            className={
+              isSuspended
+                ? 'grid grid-cols-1 sm:grid-cols-2 gap-3'
+                : 'flex flex-col'
+            }
+          >
+            {isSuspended && (
+              <Button
+                variant="primary"
+                onClick={() => setShowSuspendedModal(true)}
+                icon={MessageCircle}
+                className="w-full"
               >
-                <Image
-                  src={user.id_card_url}
-                  alt="Foto Verifikasi KTM"
-                  fill
-                  unoptimized
-                  className="object-cover"
-                  sizes="44px"
-                />
-              </button>
-              <div className="min-w-0">
-                <p className="font-semibold text-ink text-xs flex items-center gap-1.5 truncate">
-                  <CreditCard className="w-3.5 h-3.5 text-brand-blue shrink-0" aria-hidden="true" />
-                  <span>Foto Selfie & KTM</span>
-                </p>
-                <p className="text-[11px] text-ink-muted truncate">
-                  Tersimpan untuk verifikasi admin
-                </p>
-              </div>
-            </div>
+                Hubungi CS Admin
+              </Button>
+            )}
             <Button
-              type="button"
-              variant="secondary"
-              size="xs"
-              icon={Eye}
-              onClick={() => setViewingPhoto(true)}
+              variant="danger"
+              onClick={() => setShowConfirmDelete(true)}
+              icon={Trash2}
+              className="w-full"
             >
-              Lihat
+              Hapus Akun
             </Button>
           </div>
         )}
-
-        {/* Tombol Aksi */}
-        <div className="flex flex-col gap-2.5">
-          {!isRejected ? (
-            <>
-              <Button
-                variant="primary"
-                onClick={handleRefresh}
-                loading={refreshing}
-                icon={RefreshCw}
-                className="w-full"
-              >
-                Cek Status Terbaru
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={handleLogout}
-                icon={LogOut}
-                className="w-full"
-              >
-                Keluar
-              </Button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowConfirmDelete(true)}
-                className="w-full min-h-[44px] bg-danger-text hover:bg-red-800 text-white font-semibold text-sm rounded-lg px-5 py-2.5 inline-flex items-center justify-center gap-2 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" aria-hidden="true" />
-                <span>Hapus Akun</span>
-              </button>
-              <Button
-                variant="secondary"
-                onClick={handleLogout}
-                icon={LogOut}
-                className="w-full"
-              >
-                Keluar
-              </Button>
-            </>
-          )}
-        </div>
       </div>
 
       <ConfirmDialog
