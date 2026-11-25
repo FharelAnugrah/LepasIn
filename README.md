@@ -1,6 +1,10 @@
 <div align="center">
 
-<img src="./public/logo.svg" alt="Logo LepasIn" width="260" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./public/logo-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="./public/logo.svg" />
+  <img src="./public/logo.svg" alt="Logo LepasIn" width="210" />
+</picture>
 
 ### Marketplace Preloved Mahasiswa Sekampus
 
@@ -131,7 +135,8 @@ LepasIn/
 ├── database/
 │   └── lepasin.sql                  # Skema tabel PostgreSQL, indeks, trigger, & seed data
 ├── public/
-│   ├── logo.svg                     # Logo resmi LepasIn (vektor adaptif light/dark)
+│   ├── logo.svg                     # Logo LepasIn untuk tema terang (#0F294A + titik emas 3D)
+│   ├── logo-dark.svg                # Logo LepasIn untuk tema gelap (#FFFFFF + titik emas 3D)
 │   └── uploads/                     # Direktori file gambar produk, toko, avatar, & verifikasi KTM
 ├── src/
 │   ├── proxy.js                     # Route guard & redirect berbasis peran (Next.js 16)
