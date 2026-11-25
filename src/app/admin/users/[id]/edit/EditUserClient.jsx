@@ -166,6 +166,7 @@ export default function EditUserClient({ user, initialCampus }) {
             icon={Mail}
             value={user.email}
             disabled
+            readOnly
             helperText="Alamat email terikat pada akun pengguna"
           />
 

@@ -505,22 +505,16 @@ export default function SellersManager({
           setRejectDialog({ isOpen: false, seller: null, reason: '', error: '', loading: false })
         }
         title="Tolak Pengajuan Penjual"
+        subtitle={
+          rejectDialog.seller?.store_name
+            ? `Berikan alasan penolakan untuk toko ${rejectDialog.seller.store_name}`
+            : 'Berikan alasan penolakan untuk pengajuan toko ini'
+        }
+        variant="danger"
         maxWidth="max-w-lg"
         showClose={!rejectDialog.loading}
       >
         <form noValidate onSubmit={handleSubmitReject} className="flex flex-col gap-4">
-          <div className="p-3.5 rounded-xl bg-danger-bg border border-red-200 text-xs leading-relaxed">
-            <p className="font-bold text-danger-text">
-              Penolakan bersifat final untuk pengajuan ini
-            </p>
-            <p className="text-ink-secondary mt-0.5">
-              Toko <strong className="text-ink">{rejectDialog.seller?.store_name}</strong> milik{' '}
-              <strong className="text-ink">{rejectDialog.seller?.name}</strong> akan ditolak
-              secara final. Penjual dapat melihat alasan penolakan atau menghapus pengajuan ini
-              untuk mendaftar ulang dengan data yang benar.
-            </p>
-          </div>
-
           <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-ink-secondary">
               Pilihan Cepat Alasan Umum (Klik untuk mengisi):
@@ -532,6 +526,7 @@ export default function SellersManager({
                   <button
                     key={preset}
                     type="button"
+                    aria-pressed={isSelected}
                     onClick={() =>
                       setRejectDialog((prev) => ({
                         ...prev,
@@ -539,10 +534,10 @@ export default function SellersManager({
                         error: '',
                       }))
                     }
-                    className={`text-left text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                    className={`text-left text-xs px-3 py-1.5 rounded-lg border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 ${
                       isSelected
-                        ? 'bg-brand-blue-soft border-brand-blue-border text-brand-blue font-semibold'
-                        : 'bg-canvas border-border-subtle text-ink-secondary hover:text-ink hover:border-brand-blue-border'
+                        ? 'border-red-500 bg-red-50 text-red-700 font-medium'
+                        : 'bg-canvas border-border-subtle text-ink-secondary hover:text-ink hover:border-red-300 hover:bg-red-50/50'
                     }`}
                   >
                     {preset}

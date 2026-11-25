@@ -58,7 +58,7 @@ export async function PATCH(request, { params }) {
       }
       if (order.delivery_method !== 'delivery') {
         return NextResponse.json(
-          { error: 'Simulasi pembayaran online hanya untuk metode pengiriman ke kost' },
+          { error: 'Pembayaran online hanya untuk metode pengiriman ke kost' },
           { status: 400 }
         );
       }

@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import {
   Clock,
   AlertCircle,
@@ -11,21 +10,15 @@ import {
   RefreshCw,
   LogOut,
   Trash2,
-  Eye,
-  CreditCard,
-  X,
   MessageCircle,
-  AlertTriangle,
-  Phone,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { normalizePhoneNumber } from '@/lib/validation';
 
 function buildWhatsAppUrl(phone, user) {
-  const cleaned = normalizePhoneNumber(phone);
+  const cleaned = normalizePhoneNumber(phone).replace(/[^\d]/g, '');
   if (!cleaned) return null;
   const intl = cleaned.startsWith('0') ? `62${cleaned.slice(1)}` : cleaned;
   const message = `Halo CS Admin LepasIn, saya ${user.name} (${user.email}) pemilik toko "${
@@ -42,7 +35,6 @@ export default function PendingSellerClient({ user, csWhatsapp = '' }) {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [viewingPhoto, setViewingPhoto] = useState(false);
 
   const isRejected = user.seller_status === 'rejected';
   const wasPreviouslyApproved = Boolean(
@@ -51,24 +43,8 @@ export default function PendingSellerClient({ user, csWhatsapp = '' }) {
   const isSuspended = isRejected && wasPreviouslyApproved;
   const isInitialRejected = isRejected && !wasPreviouslyApproved;
 
-  const [showSuspendedModal, setShowSuspendedModal] = useState(isSuspended);
-  const [prevIsSuspended, setPrevIsSuspended] = useState(isSuspended);
-  if (isSuspended !== prevIsSuspended) {
-    setPrevIsSuspended(isSuspended);
-    setShowSuspendedModal(isSuspended);
-  }
-
   const csPhoneDisplay = normalizePhoneNumber(csWhatsapp) || csWhatsapp || '';
   const csWhatsappUrl = buildWhatsAppUrl(csWhatsapp, user);
-
-  useEffect(() => {
-    if (!viewingPhoto) return;
-    function onKeyDown(e) {
-      if (e.key === 'Escape') setViewingPhoto(false);
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [viewingPhoto]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -198,7 +174,7 @@ export default function PendingSellerClient({ user, csWhatsapp = '' }) {
         </div>
 
         {/* Judul Status (design2.md 5.8) */}
-        <h1 className="text-2xl font-bold text-ink tracking-tight mb-2">
+        <h1 className={`text-2xl font-bold text-ink tracking-tight ${isSuspended ? 'mb-6' : 'mb-2'}`}>
           {isSuspended
             ? 'Akses Toko Ditangguhkan'
             : isInitialRejected
@@ -206,13 +182,13 @@ export default function PendingSellerClient({ user, csWhatsapp = '' }) {
             : 'Akun Anda sedang ditinjau.'}
         </h1>
 
-        <p className="text-sm text-ink-secondary leading-relaxed mb-6">
-          {isSuspended
-            ? ''
-            : isInitialRejected
-            ? 'Pengajuan pendaftaran tokomu belum memenuhi syarat verifikasi penjual LepasIn. Kamu dapat menghapus pengajuan ini untuk mendaftar ulang dengan data KTM yang valid.'
-            : 'Admin LepasIn sedang memeriksa identitas dan data tokomu agar jual beli antarMahasiswa sekampus tetap aman dan terpercaya.'}
-        </p>
+        {!isSuspended && (
+          <p className="text-sm text-ink-secondary leading-relaxed mb-6">
+            {isInitialRejected
+              ? 'Pengajuan pendaftaran tokomu belum memenuhi syarat verifikasi penjual LepasIn. Kamu dapat menghapus pengajuan ini untuk mendaftar ulang dengan data KTM yang valid.'
+              : 'Admin LepasIn sedang memeriksa identitas dan data tokomu agar jual beli antarMahasiswa sekampus tetap aman dan terpercaya.'}
+          </p>
+        )}
 
         {isRejected && (
           <div className="p-4 mb-6 rounded-xl bg-danger-bg border border-red-200 text-left flex items-start gap-2.5">
@@ -245,7 +221,7 @@ export default function PendingSellerClient({ user, csWhatsapp = '' }) {
         {/* Ringkasan Nama Toko & Kampus Terdaftar (design2.md 5.8) */}
         <div
           className={`p-4 rounded-xl bg-canvas border border-border-subtle text-left flex flex-col gap-2.5 text-xs ${
-            user.id_card_url ? 'mb-4' : isRejected ? 'mb-6' : ''
+            isRejected ? 'mb-6' : ''
           }`}
         >
           <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2">
@@ -280,9 +256,6 @@ export default function PendingSellerClient({ user, csWhatsapp = '' }) {
           )}
         </div>
 
-        {/* Lampiran Foto Verifikasi */}
-       
-
         {/* Tombol Aksi Utama (Saat Ditolak / Ditangguhkan) */}
         {isRejected && (
           <div
@@ -292,16 +265,27 @@ export default function PendingSellerClient({ user, csWhatsapp = '' }) {
                 : 'flex flex-col'
             }
           >
-            {isSuspended && (
-              <Button
-                variant="primary"
-                onClick={() => setShowSuspendedModal(true)}
-                icon={MessageCircle}
-                className="w-full"
-              >
-                Hubungi CS Admin
-              </Button>
-            )}
+            {isSuspended &&
+              (csWhatsappUrl ? (
+                <a
+                  href={csWhatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-3d btn-3d-primary inline-flex items-center justify-center font-semibold rounded-xl min-h-[44px] px-4.5 text-sm gap-2 w-full select-none focus-visible:outline-2 focus-visible:outline-brand-blue focus-visible:outline-offset-2"
+                >
+                  <MessageCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>Hubungi CS Admin</span>
+                </a>
+              ) : (
+                <Button
+                  variant="primary"
+                  onClick={() => toast.error('Nomor WhatsApp CS Admin belum tersedia.')}
+                  icon={MessageCircle}
+                  className="w-full"
+                >
+                  Hubungi CS Admin
+                </Button>
+              ))}
             <Button
               variant="danger"
               onClick={() => setShowConfirmDelete(true)}
@@ -334,57 +318,6 @@ export default function PendingSellerClient({ user, csWhatsapp = '' }) {
         confirmVariant="danger"
         type="danger"
       />
-
-      {viewingPhoto && user.id_card_url && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Pratinjau foto verifikasi KTM"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/70"
-        >
-          <div className="bg-surface border border-border-subtle rounded-2xl max-w-lg w-full p-5 shadow-lg flex flex-col gap-4 max-h-[92vh] overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border-subtle pb-3">
-              <div className="min-w-0">
-                <h2 className="font-bold text-ink text-sm md:text-base flex items-center gap-2 truncate">
-                  <CreditCard className="w-4 h-4 text-brand-blue shrink-0" aria-hidden="true" />
-                  <span>Foto Verifikasi Identitas (Selfie + KTM)</span>
-                </h2>
-                <p className="text-xs text-ink-muted mt-0.5">
-                  Foto yang dikirimkan saat pendaftaran toko
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setViewingPhoto(false)}
-                className="w-10 h-10 rounded-lg text-ink-muted hover:text-ink hover:bg-surface-muted flex items-center justify-center"
-                aria-label="Tutup foto"
-              >
-                <X className="w-5 h-5" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="relative w-full h-80 sm:h-96 rounded-xl overflow-hidden bg-surface-muted border border-border-subtle">
-              <Image
-                src={user.id_card_url}
-                alt="Foto Selfie dengan KTM"
-                fill
-                unoptimized
-                className="object-contain"
-                sizes="(max-width: 640px) 90vw, 500px"
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-1 text-xs">
-              <p className="text-ink-muted">
-                Pastikan kartu identitas terbaca jelas agar verifikasi dapat disetujui.
-              </p>
-              <Button variant="secondary" size="sm" onClick={() => setViewingPhoto(false)}>
-                Tutup
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

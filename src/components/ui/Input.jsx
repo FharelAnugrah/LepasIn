@@ -23,6 +23,8 @@ const Input = forwardRef(function Input(
     className = '',
     id,
     type = 'text',
+    readOnly,
+    onWheel,
     ...props
   },
   ref
@@ -32,6 +34,8 @@ const Input = forwardRef(function Input(
   const errorId = error ? `${inputId}-error` : undefined;
   const helperId = !error && helperText ? `${inputId}-helper` : undefined;
   const radius = pill ? 'rounded-full' : 'rounded-lg';
+  const resolvedReadOnly =
+    readOnly ?? (props.value !== undefined && !props.onChange && props.disabled ? true : undefined);
 
   return (
     <div className="w-full flex flex-col gap-1.5">
@@ -57,14 +61,6 @@ const Input = forwardRef(function Input(
           type={type}
           aria-invalid={Boolean(error)}
           aria-describedby={errorId || helperId}
-          onWheel={(e) => {
-            if (type === 'number') {
-              e.currentTarget.blur();
-            }
-            if (props.onWheel) {
-              props.onWheel(e);
-            }
-          }}
           className={`input-3d w-full h-11 ${Icon ? 'pl-10' : 'pl-3.5'} ${
             IconRight ? 'pr-10' : 'pr-3.5'
           } ${radius} bg-surface font-sans text-ink text-base md:text-sm placeholder:text-ink-muted ${
@@ -75,6 +71,15 @@ const Input = forwardRef(function Input(
               : 'border-border-subtle focus:border-brand-blue focus:ring-3 focus:ring-brand-blue-soft'
           } outline-none disabled:opacity-60 disabled:bg-surface-muted ${className}`}
           {...props}
+          readOnly={resolvedReadOnly}
+          onWheel={(e) => {
+            if (type === 'number') {
+              e.currentTarget.blur();
+            }
+            if (onWheel) {
+              onWheel(e);
+            }
+          }}
         />
 
         {IconRight && (
@@ -107,6 +112,7 @@ export const Textarea = forwardRef(function Textarea(
     className = '',
     id,
     rows = 4,
+    readOnly,
     ...props
   },
   ref
@@ -115,6 +121,8 @@ export const Textarea = forwardRef(function Textarea(
   const inputId = id || (label ? `${label.toLowerCase().replace(/\s+/g, '-')}-${generatedId}` : generatedId);
   const errorId = error ? `${inputId}-error` : undefined;
   const helperId = !error && helperText ? `${inputId}-helper` : undefined;
+  const resolvedReadOnly =
+    readOnly ?? (props.value !== undefined && !props.onChange && props.disabled ? true : undefined);
 
   return (
     <div className="w-full flex flex-col gap-1.5">
@@ -139,6 +147,7 @@ export const Textarea = forwardRef(function Textarea(
             : 'border-border-subtle focus:border-brand-blue focus:ring-3 focus:ring-brand-blue-soft'
         } outline-none resize-y disabled:opacity-60 disabled:bg-surface-muted ${className}`}
         {...props}
+        readOnly={resolvedReadOnly}
       />
 
       {error ? (

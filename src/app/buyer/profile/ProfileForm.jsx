@@ -247,8 +247,6 @@ export default function ProfileForm({ user, initialCampus }) {
               type="email"
               icon={Mail}
               value={user.email}
-              disabled
-              helperText="Alamat email tidak dapat diubah"
             />
 
             <Input

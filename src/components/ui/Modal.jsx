@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useId } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 
 export default function Modal({
   isOpen,
   onClose,
   title,
+  subtitle,
+  icon: CustomIcon,
+  variant = 'default', // 'default' | 'danger'
   children,
   maxWidth = 'max-w-md',
   showClose = true,
@@ -15,6 +18,10 @@ export default function Modal({
   const bodyRef = useRef(null);
   const onCloseRef = useRef(onClose);
   const titleId = useId();
+  const subtitleId = useId();
+
+  const isDanger = variant === 'danger';
+  const HeaderIcon = CustomIcon || (isDanger ? AlertTriangle : null);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -97,23 +104,67 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
+        aria-describedby={subtitle ? subtitleId : undefined}
         tabIndex={-1}
-        className={`relative w-full ${maxWidth} surface-3d animate-modal-3d rounded-t-2xl md:rounded-2xl z-10 max-h-[90dvh] flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] outline-none`}
+        className={`relative w-full ${maxWidth} surface-3d animate-modal-3d rounded-t-2xl md:rounded-2xl z-10 max-h-[90dvh] flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] outline-none ${
+          isDanger ? 'border-t-4 border-t-red-600' : ''
+        }`}
       >
         {(title || showClose) && (
-          <div className="flex items-center justify-between gap-2 px-5 sm:px-6 pt-4 sm:pt-5 pb-3 border-b border-border-subtle shrink-0">
+          <div
+            className={`flex items-start justify-between gap-3 px-5 sm:px-6 pt-4 sm:pt-5 pb-3.5 border-b shrink-0 ${
+              isDanger
+                ? 'bg-red-50/75 border-red-100'
+                : 'border-border-subtle'
+            }`}
+          >
             {title ? (
-              <h3 id={titleId} className="text-base md:text-lg font-bold text-ink truncate">
-                {title}
-              </h3>
+              <div className="flex items-start gap-3 min-w-0">
+                {HeaderIcon && (
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                      isDanger
+                        ? 'bg-red-100 text-red-600'
+                        : 'bg-surface-muted text-ink'
+                    }`}
+                  >
+                    <HeaderIcon className="w-5 h-5" aria-hidden="true" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h3
+                    id={titleId}
+                    className={`text-base md:text-lg font-bold leading-snug truncate ${
+                      isDanger ? 'text-red-950' : 'text-ink'
+                    }`}
+                  >
+                    {title}
+                  </h3>
+                  {subtitle && (
+                    <p
+                      id={subtitleId}
+                      className={`text-xs md:text-sm mt-0.5 line-clamp-2 ${
+                        isDanger ? 'text-red-700/90' : 'text-ink-muted'
+                      }`}
+                    >
+                      {subtitle}
+                    </p>
+                  )}
+                </div>
+              </div>
             ) : (
               <div />
             )}
+
             {showClose && (
               <button
                 type="button"
                 onClick={onClose}
-                className="w-11 h-11 md:w-10 md:h-10 -mr-2 rounded-lg flex items-center justify-center text-ink-muted hover:text-ink hover:bg-surface-muted transition-colors shrink-0"
+                className={`w-10 h-10 -mr-2 -mt-1 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
+                  isDanger
+                    ? 'text-red-700/70 hover:text-red-900 hover:bg-red-100/80'
+                    : 'text-ink-muted hover:text-ink hover:bg-surface-muted'
+                }`}
                 aria-label="Tutup dialog"
               >
                 <X className="w-5 h-5" aria-hidden="true" />
@@ -122,7 +173,9 @@ export default function Modal({
           </div>
         )}
 
-        <div ref={bodyRef} className="px-5 sm:px-6 py-4 sm:py-5 overflow-y-auto">{children}</div>
+        <div ref={bodyRef} className="px-5 sm:px-6 py-4 sm:py-5 overflow-y-auto">
+          {children}
+        </div>
       </div>
     </div>
   );

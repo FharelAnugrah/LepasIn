@@ -10,23 +10,30 @@ import {
   UploadCloud,
   Trash2,
   Loader2,
-  ShieldCheck,
-  GraduationCap,
-  Package,
+  User,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import Input, { Textarea } from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import CampusSelector from '@/components/ui/CampusSelector';
 import { useToast } from '@/components/ui/Toast';
-import { validateStoreName, validateStoreDescription, validateLocation } from '@/lib/validation';
+import {
+  validateStoreName,
+  validateStoreDescription,
+  validateLocation,
+  validateFullName,
+  validatePhone,
+  validateEmail,
+  normalizePhoneNumber,
+} from '@/lib/validation';
 import { focusFirstInvalidField } from '@/lib/form-utils';
 
 export default function StoreSettingsClient({
   store,
   initialCampus,
   campuses,
-  sellerName = 'Pemilik Lapak',
-  productCount = 0,
+  seller = { name: '', email: '', phone: '' },
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -49,6 +56,18 @@ export default function StoreSettingsClient({
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  const [savedProfileSnapshot, setSavedProfileSnapshot] = useState({
+    name: seller?.name || '',
+    phone: seller?.phone || '',
+    email: seller?.email || '',
+  });
+
+  const [profileName, setProfileName] = useState(seller?.name || '');
+  const [profilePhone, setProfilePhone] = useState(seller?.phone || '');
+  const [profileEmail, setProfileEmail] = useState(seller?.email || '');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileErrors, setProfileErrors] = useState({});
+
   const hasUnsavedImageChange = imageUrl !== savedSnapshot.imageUrl;
   const hasUnsavedChanges =
     name.trim() !== savedSnapshot.name.trim() ||
@@ -56,6 +75,11 @@ export default function StoreSettingsClient({
     description.trim() !== savedSnapshot.description.trim() ||
     (campus?.id || null) !== savedSnapshot.campusId ||
     hasUnsavedImageChange;
+
+  const hasUnsavedProfileChanges =
+    profileName.trim() !== savedProfileSnapshot.name.trim() ||
+    normalizePhoneNumber(profilePhone) !== normalizePhoneNumber(savedProfileSnapshot.phone) ||
+    profileEmail.trim().toLowerCase() !== savedProfileSnapshot.email.trim().toLowerCase();
 
   const handleImageUpload = async (file) => {
     if (!file) return;
@@ -183,24 +207,126 @@ export default function StoreSettingsClient({
     }
   };
 
+  const validateProfileForm = () => {
+    const errs = {};
+    const nameErr = validateFullName(profileName);
+    if (nameErr) errs.name = nameErr;
+
+    const phoneErr = validatePhone(profilePhone);
+    if (phoneErr) errs.phone = phoneErr;
+
+    const emailErr = validateEmail(profileEmail);
+    if (emailErr) errs.email = emailErr;
+
+    return errs;
+  };
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    if (profileLoading) return;
+
+    const errs = validateProfileForm();
+    if (Object.keys(errs).length > 0) {
+      setProfileErrors(errs);
+      const idMap = {
+        name: 'seller-fullname-input',
+        phone: 'seller-phone-input',
+        email: 'seller-email-input',
+      };
+      focusFirstInvalidField(Object.keys(errs).map((k) => idMap[k]).filter(Boolean));
+      return;
+    }
+
+    setProfileErrors({});
+    setProfileLoading(true);
+
+    try {
+      const res = await fetch('/api/seller/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profileName.trim(),
+          phone: profilePhone.trim(),
+          email: profileEmail.trim().toLowerCase(),
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        if (data.errors && typeof data.errors === 'object') {
+          setProfileErrors(data.errors);
+          const idMap = {
+            name: 'seller-fullname-input',
+            phone: 'seller-phone-input',
+            email: 'seller-email-input',
+          };
+          focusFirstInvalidField(Object.keys(data.errors).map((k) => idMap[k]).filter(Boolean));
+        }
+        toast.error(data.error || 'Gagal menyimpan identitas pribadi');
+        setProfileLoading(false);
+        return;
+      }
+
+      const updated = data.user || {};
+      const nextName = updated.name || profileName.trim();
+      const nextPhone = updated.phone || normalizePhoneNumber(profilePhone);
+      const nextEmail = updated.email || profileEmail.trim().toLowerCase();
+
+      setProfileName(nextName);
+      setProfilePhone(nextPhone);
+      setProfileEmail(nextEmail);
+      setSavedProfileSnapshot({
+        name: nextName,
+        phone: nextPhone,
+        email: nextEmail,
+      });
+
+      toast.success(data.message || 'Identitas pribadi berhasil diperbarui.');
+      setProfileLoading(false);
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      toast.error('Terjadi gangguan jaringan');
+      setProfileLoading(false);
+    }
+  };
+
   return (
     <div className="w-full flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-ink tracking-tight flex items-center gap-2">
             <Store className="w-6 h-6 text-brand-blue" aria-hidden="true" />
-            <span>Pengaturan Lapak dan Lokasi COD</span>
+            <span>Pengaturan Lapak dan Identitas Penjual</span>
           </h1>
           <p className="text-sm text-ink-muted mt-1">
-            Sesuaikan nama toko, asal kampus, dan area kost untuk mempermudah COD sekampus.
+            Sesuaikan informasi toko, lokasi COD, serta identitas pribadi akun penjual.
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start w-full">
-        {/* Kolom Kiri (2/3): Formulir Pengaturan Toko */}
-        <div className="lg:col-span-2 surface-3d rounded-2xl p-5 sm:p-6 md:p-8">
-          <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
+        {/* Kolom Kiri (7/12): Formulir Pengaturan Toko */}
+        <section
+          aria-labelledby="store-settings-heading"
+          className="lg:col-span-7 surface-3d rounded-2xl p-5 sm:p-6 md:p-8"
+        >
+          <div className="flex items-start gap-2.5 pb-4 mb-5 border-b border-border-subtle">
+            <div className="w-9 h-9 rounded-xl bg-brand-blue-soft text-brand-blue flex items-center justify-center shrink-0">
+              <Store className="w-4.5 h-4.5" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 id="store-settings-heading" className="text-base font-bold text-ink">
+                Informasi Lapak dan Lokasi COD
+              </h2>
+              <p className="text-xs text-ink-muted mt-0.5">
+                Tampil pada halaman toko dan etalase produk di kampus.
+              </p>
+            </div>
+          </div>
+
+          <form aria-labelledby="store-settings-heading" noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
             {/* Upload Foto / Logo Toko */}
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-5 border-b border-border-subtle">
               <div className="relative group shrink-0">
@@ -420,92 +546,165 @@ export default function StoreSettingsClient({
               )}
             </div>
           </form>
-        </div>
+        </section>
 
-        {/* Kolom Kanan (1/3 sticky): Pratinjau Kartu Lapak Publik */}
-        <aside className="lg:col-span-1 lg:sticky lg:top-20 surface-3d rounded-2xl p-5 sm:p-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-2 pb-3 border-b border-border-subtle">
+        {/* Kolom Kanan (5/12 sticky): Formulir Identitas Pribadi Penjual */}
+        <section
+          aria-labelledby="seller-identity-heading"
+          className="lg:col-span-5 lg:sticky lg:top-20 surface-3d rounded-2xl p-5 sm:p-6 md:p-7"
+        >
+          <div className="flex items-start gap-2.5 pb-4 mb-5 border-b border-border-subtle">
+            <div className="w-9 h-9 rounded-xl bg-brand-blue-soft text-brand-blue flex items-center justify-center shrink-0">
+              <User className="w-4.5 h-4.5" aria-hidden="true" />
+            </div>
             <div>
-              <h2 className="text-sm font-bold text-ink">Pratinjau Kartu Lapak</h2>
-              <p className="text-xs text-ink-muted">Tampilan profil di sisi pembeli</p>
-            </div>
-            <span className="text-[11px] font-semibold text-brand-blue bg-brand-blue-soft px-2 py-0.5 rounded-md shrink-0">
-              Live
-            </span>
-          </div>
-
-          <div className="rounded-xl border border-border-subtle bg-canvas p-4 flex flex-col gap-3.5">
-            <div className="flex items-start gap-3 min-w-0">
-              {imageUrl ? (
-                <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-border-subtle bg-surface-muted">
-                  <Image
-                    src={imageUrl}
-                    alt={name || 'Logo Lapak'}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    sizes="56px"
-                  />
-                </div>
-              ) : (
-                <div className="w-14 h-14 rounded-xl icon-plinth-navy text-white font-bold text-xl flex items-center justify-center shrink-0 uppercase select-none">
-                  {name.trim() ? name.trim().charAt(0) : 'T'}
-                </div>
-              )}
-
-              <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-bold text-ink truncate">
-                  {name.trim() || 'Nama Toko Kamu'}
-                </h3>
-                <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-success-bg text-success-text">
-                    <ShieldCheck className="w-3 h-3" aria-hidden="true" />
-                    <span>Terverifikasi</span>
-                  </span>
-                </div>
-                <p className="text-xs text-ink-muted truncate mt-1">
-                  Pengelola: {sellerName}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5 text-xs">
-              <div className="flex items-center gap-1.5 text-brand-blue font-semibold">
-                <GraduationCap className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                <span className="truncate">
-                  {campus
-                    ? `${campus.short_name}${campus.city ? ` (${campus.city})` : ''}`
-                    : 'Kampus belum dipilih'}
-                </span>
-              </div>
-              <div className="flex items-start gap-1.5 text-ink-secondary">
-                <MapPin className="w-3.5 h-3.5 text-ink-muted shrink-0 mt-0.5" aria-hidden="true" />
-                <span className="break-words">
-                  {location.trim() || 'Area COD belum diisi'}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-surface border border-border-subtle text-xs text-ink-secondary leading-relaxed">
-              <p className="line-clamp-4 break-words">
-                {description.trim() || 'Deskripsi dan jadwal COD toko akan tampil di sini.'}
+              <h2 id="seller-identity-heading" className="text-base font-bold text-ink">
+                Identitas Pribadi Penjual
+              </h2>
+              <p className="text-xs text-ink-muted mt-0.5">
+                Perbarui nama lengkap, nomor WhatsApp, dan email akun penjual.
               </p>
             </div>
-
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border-subtle text-xs text-ink-muted tabular-nums">
-              <span className="inline-flex items-center gap-1.5">
-                <Package className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                <span>
-                  <strong className="text-ink">{productCount}</strong> produk aktif
-                </span>
-              </span>
-            </div>
           </div>
 
-          <p className="text-xs text-ink-muted leading-relaxed">
-            Pembeli sekampus melihat kartu identitas di atas pada halaman toko maupun sebelum menyepakati titik temu COD.
-          </p>
-        </aside>
+          <form
+            aria-labelledby="seller-identity-heading"
+            noValidate
+            onSubmit={handleProfileSubmit}
+            className="flex flex-col gap-5"
+          >
+            <Input
+              id="seller-fullname-input"
+              name="name"
+              label="Nama Lengkap *"
+              placeholder="Contoh: Dinda Putri Rahayu"
+              icon={User}
+              maxLength={100}
+              autoComplete="name"
+              value={profileName}
+              onChange={(e) => {
+                const val = e.target.value;
+                setProfileName(val);
+                if (profileErrors.name) {
+                  const err = validateFullName(val);
+                  setProfileErrors((prev) => {
+                    const n = { ...prev };
+                    if (err) n.name = err;
+                    else delete n.name;
+                    return n;
+                  });
+                }
+              }}
+              onBlur={() => {
+                const err = validateFullName(profileName);
+                setProfileErrors((prev) => {
+                  const n = { ...prev };
+                  if (err) n.name = err;
+                  else delete n.name;
+                  return n;
+                });
+              }}
+              error={profileErrors.name}
+              helperText="Nama pengelola toko yang tampil pada profil lapak"
+              required
+            />
+
+            <Input
+              id="seller-phone-input"
+              name="phone"
+              label="Nomor WhatsApp / HP *"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="081234567890"
+              icon={Phone}
+              maxLength={20}
+              value={profilePhone}
+              onChange={(e) => {
+                const val = e.target.value;
+                setProfilePhone(val);
+                if (profileErrors.phone) {
+                  const err = validatePhone(val);
+                  setProfileErrors((prev) => {
+                    const n = { ...prev };
+                    if (err) n.phone = err;
+                    else delete n.phone;
+                    return n;
+                  });
+                }
+              }}
+              onBlur={() => {
+                const err = validatePhone(profilePhone);
+                setProfileErrors((prev) => {
+                  const n = { ...prev };
+                  if (err) n.phone = err;
+                  else delete n.phone;
+                  return n;
+                });
+              }}
+              error={profileErrors.phone}
+              helperText="Gunakan format 08... atau 62... untuk koordinasi COD & admin"
+              required
+            />
+
+            <Input
+              id="seller-email-input"
+              name="email"
+              label="Alamat Email (Gmail / Kampus) *"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="nama@gmail.com"
+              icon={Mail}
+              maxLength={255}
+              value={profileEmail}
+              onChange={(e) => {
+                const val = e.target.value;
+                setProfileEmail(val);
+                if (profileErrors.email) {
+                  const err = validateEmail(val);
+                  setProfileErrors((prev) => {
+                    const n = { ...prev };
+                    if (err) n.email = err;
+                    else delete n.email;
+                    return n;
+                  });
+                }
+              }}
+              onBlur={() => {
+                const err = validateEmail(profileEmail);
+                setProfileErrors((prev) => {
+                  const n = { ...prev };
+                  if (err) n.email = err;
+                  else delete n.email;
+                  return n;
+                });
+              }}
+              error={profileErrors.email}
+              helperText="Dipakai sebagai email masuk akun penjual LepasIn"
+              required
+            />
+
+            <div className="pt-4 border-t border-border-subtle flex flex-col gap-2.5">
+              <Button
+                type="submit"
+                variant="primary"
+                loading={profileLoading}
+                className="w-full"
+              >
+                Simpan Identitas Pribadi
+              </Button>
+              {hasUnsavedProfileChanges && (
+                <span className="text-xs font-medium text-warning-text text-center">
+                  Ada perubahan identitas yang belum disimpan
+                </span>
+              )}
+            </div>
+          </form>
+        </section>
       </div>
     </div>
   );

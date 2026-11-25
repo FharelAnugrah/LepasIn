@@ -8,8 +8,11 @@ export const dynamic = 'force-dynamic';
 export async function PATCH(request) {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== 'seller') {
+    if (!user) {
       return NextResponse.json({ error: 'Tidak terotentikasi' }, { status: 401 });
+    }
+    if (user.role !== 'seller' || user.seller_status !== 'approved') {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
 
     const body = await request.json();

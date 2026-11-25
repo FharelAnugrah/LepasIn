@@ -37,8 +37,11 @@ export default async function SellerStorePage() {
       store={store || { name: '', location: '', description: '', campus_id: null, image_url: null }}
       initialCampus={initialCampus}
       campuses={campusesRes.rows}
-      sellerName={seller.name}
-      productCount={seller.products_count ?? 0}
+      seller={{
+        name: seller.name || '',
+        email: seller.email || '',
+        phone: seller.phone || '',
+      }}
     />
   );
 }
