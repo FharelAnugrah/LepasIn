@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit2, Trash2, Tags, Package, Search, Lock } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tags, Package, Search, Lock, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -43,8 +43,12 @@ export default function CategoriesManager({ initialCategories }) {
   const [deleteDialog, setDeleteDialog] = useState({
     isOpen: false,
     category: null,
-    productCount: 0,
     loading: false,
+  });
+
+  const [blockedDialog, setBlockedDialog] = useState({
+    isOpen: false,
+    category: null,
   });
 
   const filteredCategories = categories.filter((c) =>
@@ -151,16 +155,22 @@ export default function CategoriesManager({ initialCategories }) {
       toast.warning('Kategori "Lainnya" adalah kategori sistem dan tidak dapat dihapus.');
       return;
     }
+    if ((category.product_count || 0) > 0) {
+      setBlockedDialog({
+        isOpen: true,
+        category,
+      });
+      return;
+    }
     setDeleteDialog({
       isOpen: true,
       category,
-      productCount: category.product_count || 0,
       loading: false,
     });
   };
 
   const handleConfirmDelete = async () => {
-    const { category, productCount } = deleteDialog;
+    const { category } = deleteDialog;
     if (!category) return;
 
     setDeleteDialog((prev) => ({ ...prev, loading: true }));
@@ -173,6 +183,20 @@ export default function CategoriesManager({ initialCategories }) {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code === 'HAS_PRODUCTS') {
+          const updatedCat = {
+            ...category,
+            product_count: data.product_count ?? category.product_count ?? 1,
+          };
+          setCategories((prev) =>
+            sortCategoriesWithLainnyaLast(
+              prev.map((c) => (c.id === category.id ? updatedCat : c))
+            )
+          );
+          setDeleteDialog({ isOpen: false, category: null, loading: false });
+          setBlockedDialog({ isOpen: true, category: updatedCat });
+          return;
+        }
         toast.error(data.error || 'Gagal menghapus kategori');
         setDeleteDialog((prev) => ({ ...prev, loading: false }));
         return;
@@ -184,14 +208,9 @@ export default function CategoriesManager({ initialCategories }) {
         setCategories((prev) => prev.filter((c) => c.id !== category.id));
       }
 
-      const successMsg =
-        data.message ||
-        (productCount > 0
-          ? `Kategori "${category.name}" berhasil dihapus, dan ${productCount} produk dipindahkan ke "Lainnya"`
-          : `Kategori "${category.name}" berhasil dihapus`);
-      toast.success(successMsg);
+      toast.success(data.message || `Kategori "${category.name}" berhasil dihapus`);
 
-      setDeleteDialog({ isOpen: false, category: null, productCount: 0, loading: false });
+      setDeleteDialog({ isOpen: false, category: null, loading: false });
       router.refresh();
     } catch (err) {
       console.error(err);
@@ -404,6 +423,7 @@ export default function CategoriesManager({ initialCategories }) {
         title={modalState.mode === 'add' ? 'Tambah Kategori Baru' : 'Edit Nama Kategori'}
       >
         <form
+          noValidate
           onSubmit={handleSubmitModal}
           onKeyDown={preventEnterSubmitOnInput}
           className="flex flex-col gap-4"
@@ -412,6 +432,7 @@ export default function CategoriesManager({ initialCategories }) {
             id="category-name-input"
             label="Nama Kategori"
             placeholder="Contoh: Elektronik & Gadget"
+            maxLength={50}
             value={modalState.name}
             onChange={(e) => {
               const val = e.target.value;
@@ -454,27 +475,60 @@ export default function CategoriesManager({ initialCategories }) {
 
       <ConfirmDialog
         isOpen={deleteDialog.isOpen}
-        onClose={() => setDeleteDialog({ isOpen: false, category: null, productCount: 0, loading: false })}
+        onClose={() => setDeleteDialog({ isOpen: false, category: null, loading: false })}
         onConfirm={handleConfirmDelete}
         loading={deleteDialog.loading}
-        title={
-          deleteDialog.productCount > 0
-            ? 'Hapus Kategori & Pindahkan Produk?'
-            : 'Hapus Kategori Produk?'
-        }
-        message={
-          deleteDialog.productCount > 0
-            ? `Kategori "${deleteDialog.category?.name}" saat ini menampung ${deleteDialog.productCount} produk aktif. Jika dihapus, seluruh produk tersebut akan otomatis dialihkan ke kategori "Lainnya" agar tetap aman di katalog.`
-            : `Apakah Anda yakin ingin menghapus kategori "${deleteDialog.category?.name}"? Tindakan ini tidak dapat dibatalkan.`
-        }
-        confirmText={
-          deleteDialog.productCount > 0
-            ? 'Ya, Pindahkan & Hapus'
-            : 'Ya, Hapus Kategori'
-        }
+        title="Hapus Kategori Produk?"
+        message={`Apakah Anda yakin ingin menghapus kategori "${deleteDialog.category?.name}" dari sistem LepasIn? Kategori ini tidak memiliki produk aktif terdaftar.`}
+        confirmText="Ya, Hapus Kategori"
         confirmVariant="danger"
-        type={deleteDialog.productCount > 0 ? 'warning' : 'danger'}
+        type="danger"
       />
+
+      {/* Modal Peringatan Proteksi Kategori Masih Memiliki Produk */}
+      <Modal
+        isOpen={blockedDialog.isOpen}
+        onClose={() => setBlockedDialog({ isOpen: false, category: null })}
+        maxWidth="max-w-md"
+      >
+        <div className="flex flex-col items-center text-center p-1 sm:p-2">
+          <div className="w-13 h-13 rounded-2xl flex items-center justify-center mb-4 bg-warning-bg border border-amber-200 text-warning-text shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_3px_0_rgba(15,41,74,0.12)]">
+            <AlertTriangle className="w-6 h-6" aria-hidden="true" />
+          </div>
+
+          <h3 className="text-lg font-bold text-ink mb-2">
+            Kategori Tidak Dapat Dihapus
+          </h3>
+
+          <p className="text-sm text-ink-secondary mb-4 leading-relaxed">
+            Kategori <strong className="text-ink">&quot;{blockedDialog.category?.name}&quot;</strong> saat ini masih menampung produk aktif:
+          </p>
+
+          <div className="grid grid-cols-1 gap-3 w-full mb-4">
+            <div className="surface-3d rounded-xl p-3 flex flex-col items-center justify-center text-center">
+              <span className="text-xs text-ink-muted flex items-center gap-1.5 mb-1">
+                <Package className="w-3.5 h-3.5 text-brand-blue" aria-hidden="true" />
+                <span>Produk Terdaftar</span>
+              </span>
+              <span className="text-base font-extrabold text-ink tabular-nums">
+                {blockedDialog.category?.product_count || 0} Produk
+              </span>
+            </div>
+          </div>
+
+          <p className="text-xs text-ink-muted bg-surface-muted border border-border-subtle rounded-xl p-3 mb-6 text-left leading-relaxed">
+            Demi menjaga pengelompokan produk di katalog publik dan etalase penjual tetap rapi serta konsisten, sistem memproteksi kategori dari penghapusan selama masih terdapat produk di dalamnya.
+          </p>
+
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={() => setBlockedDialog({ isOpen: false, category: null })}
+          >
+            Saya Mengerti
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
