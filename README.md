@@ -196,19 +196,44 @@ Gunakan daftar periksa interaktif ini bila menguji aplikasi secara menyeluruh se
 ## Panduan Instalasi Lokal
 
 ### 1. Prasyarat
+- **Git** untuk meng-clone repositori
 - **Node.js** 18+ (disarankan versi LTS) dan **npm**
 - **PostgreSQL** 14+
 
-### 2. Siapkan Database PostgreSQL
-Buat database kosong bernama `lepasin`, lalu impor skema beserta data awal dari [`database/lepasin.sql`](./database/lepasin.sql):
+### 2. Clone Repositori
+Clone repositori ke komputer lokal Anda, lalu masuk ke direktori proyek:
 
 ```bash
+git clone https://github.com/FharelAnugrah/LepasIn.git
+cd LepasIn
+```
+
+Jika menggunakan **SSH**:
+
+```bash
+git clone git@github.com:FharelAnugrah/LepasIn.git
+cd LepasIn
+```
+
+*(Alternatif tanpa Git CLI: klik **Code** -> **Download ZIP** di halaman repositori GitHub, ekstrak foldernya, lalu buka terminal di dalam folder `LepasIn`.)*
+
+### 3. Instal Dependensi
+
+```bash
+npm install
+```
+
+### 4. Siapkan Database PostgreSQL
+Buat database kosong bernama `lepasin` terlebih dahulu, lalu impor skema beserta data awal dari [`database/lepasin.sql`](./database/lepasin.sql):
+
+```bash
+psql -U postgres -c "CREATE DATABASE lepasin;"
 psql -U postgres -d lepasin -f database/lepasin.sql
 ```
 
 *(Saat aplikasi pertama kali mengakses database, `src/lib/db.js` juga menjalankan pengecekan migrasi startup aman agar struktur tabel dan kolom tetap selaras.)*
 
-### 3. Konfigurasi Environment Variable
+### 5. Konfigurasi Environment Variable
 Salin [`.env.example`](./.env.example) menjadi `.env.local`:
 
 ```bash
@@ -232,10 +257,9 @@ NODE_ENV=development
 # NEXT_PUBLIC_CS_WHATSAPP=081200000001
 ```
 
-### 4. Instal Dependensi & Jalankan Aplikasi
+### 6. Jalankan Aplikasi
 
 ```bash
-npm install
 npm run dev
 ```
 
