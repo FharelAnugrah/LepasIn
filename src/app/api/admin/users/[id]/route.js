@@ -1,15 +1,28 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { withTransaction } from '@/lib/db';
-import { validateFullName, validatePhone } from '@/lib/validation';
+import { normalizePhoneNumber, validateFullName, validatePhone } from '@/lib/validation';
 import {
   GuardError,
-  findActiveOrdersBySellerUserId,
   findActiveOrdersByUserId,
   formatActiveOrderSummary,
 } from '@/lib/order-guards';
 
 export const dynamic = 'force-dynamic';
+
+const MAX_PG_INT = 2147483647;
+
+function parsePositivePgInt(value) {
+  if (value === undefined || value === null || typeof value === 'boolean') return null;
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value >= 1 && value <= MAX_PG_INT ? value : null;
+  }
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const num = Number(trimmed);
+  return Number.isInteger(num) && num >= 1 && num <= MAX_PG_INT ? num : null;
+}
 
 export async function PATCH(request, { params }) {
   try {
@@ -19,32 +32,60 @@ export async function PATCH(request, { params }) {
     }
 
     const { id } = await params;
-    const targetUserId = Number(id);
+    const targetUserId = parsePositivePgInt(id);
 
     if (!targetUserId) {
       return NextResponse.json({ error: 'ID pengguna tidak valid' }, { status: 400 });
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Format payload JSON tidak valid' }, { status: 400 });
+    }
+
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Format payload tidak valid' }, { status: 400 });
+    }
+
     const { name, phone, campus_id, role, seller_status } = body;
+
+    if (typeof name !== 'string') {
+      return NextResponse.json({ error: 'Nama lengkap wajib diisi.' }, { status: 400 });
+    }
 
     const nameErr = validateFullName(name);
     if (nameErr) {
       return NextResponse.json({ error: nameErr }, { status: 400 });
     }
 
-    if (phone) {
-      const phoneErr = validatePhone(phone);
-      if (phoneErr) {
-        return NextResponse.json({ error: phoneErr }, { status: 400 });
+    let cleanPhone = null;
+    if (phone !== undefined && phone !== null && phone !== '') {
+      if (typeof phone !== 'string') {
+        return NextResponse.json({ error: 'Nomor WhatsApp tidak valid.' }, { status: 400 });
+      }
+      if (phone.trim() !== '') {
+        const phoneErr = validatePhone(phone);
+        if (phoneErr) {
+          return NextResponse.json({ error: phoneErr }, { status: 400 });
+        }
+        cleanPhone = normalizePhoneNumber(phone);
       }
     }
 
-    const parsedCampusId = campus_id ? Number(campus_id) : null;
+    const isCampusOmitted = campus_id === undefined;
+    let parsedCampusId = null;
+    if (!isCampusOmitted && campus_id !== null && campus_id !== '') {
+      parsedCampusId = parsePositivePgInt(campus_id);
+      if (!parsedCampusId) {
+        return NextResponse.json({ error: 'ID kampus tidak valid' }, { status: 400 });
+      }
+    }
 
     const updatedUser = await withTransaction(async (client) => {
       const existingRes = await client.query(
-        `SELECT id, role, seller_status, was_approved FROM users WHERE id = $1 FOR UPDATE`,
+        `SELECT id, role, seller_status, was_approved, campus_id FROM users WHERE id = $1 FOR UPDATE`,
         [targetUserId]
       );
 
@@ -53,64 +94,66 @@ export async function PATCH(request, { params }) {
       }
 
       const existing = existingRes.rows[0];
-      const nextRole = role || existing.role;
-      const nextSellerStatus = nextRole === 'seller' ? seller_status || 'approved' : null;
 
-      if (targetUserId === admin.id && nextRole !== 'admin') {
-        throw new GuardError('Anda tidak dapat menurunkan peran akun admin Anda sendiri', 400);
+      // Admin tidak diperbolehkan mengganti role akun user
+      if (role !== undefined && role !== null && role !== existing.role) {
+        throw new GuardError('Peran akun (role) tidak dapat diubah.', 400);
       }
 
-      // Cegah penonaktifan penjual/toko bila masih ada pesanan aktif pada tokonya
-      const isDeactivatingSeller =
-        existing.role === 'seller' &&
-        existing.seller_status === 'approved' &&
-        (nextRole !== 'seller' || nextSellerStatus !== 'approved');
+      const nextRole = existing.role;
 
-      if (isDeactivatingSeller) {
-        const activeSellerOrders = await findActiveOrdersBySellerUserId(client, targetUserId);
-        if (activeSellerOrders.length > 0) {
+      if (nextRole === 'seller') {
+        if (
+          seller_status !== undefined &&
+          seller_status !== null &&
+          seller_status !== '' &&
+          seller_status !== existing.seller_status
+        ) {
           throw new GuardError(
-            `Status penjual tidak dapat diubah karena masih ada ${formatActiveOrderSummary(activeSellerOrders)}.`,
+            'Status verifikasi dan penangguhan penjual hanya dapat diubah melalui menu Verifikasi Penjual.',
             400
           );
         }
+      } else if (seller_status !== undefined && seller_status !== null && seller_status !== '') {
+        throw new GuardError('Status penjual hanya berlaku untuk akun penjual.', 400);
       }
 
-      // Cegah perubahan peran pembeli jika masih memiliki pesanan aktif sebagai pembeli
-      if (existing.role === 'buyer' && nextRole !== 'buyer') {
-        const activeUserOrders = await findActiveOrdersByUserId(client, targetUserId);
-        const buyerOrders = activeUserOrders.filter((o) => o.involvement === 'buyer');
-        if (buyerOrders.length > 0) {
-          throw new GuardError(
-            `Peran pembeli tidak dapat diubah karena masih ada ${formatActiveOrderSummary(buyerOrders)}.`,
-            400
-          );
+      const nextCampusId = isCampusOmitted ? existing.campus_id : parsedCampusId;
+      if (nextRole === 'seller' && !nextCampusId) {
+        throw new GuardError('Akun penjual wajib terikat ke salah satu kampus.', 400);
+      }
+
+      if (nextCampusId !== null && nextCampusId !== existing.campus_id) {
+        const campusCheck = await client.query(`SELECT id FROM campuses WHERE id = $1`, [
+          nextCampusId,
+        ]);
+        if (campusCheck.rows.length === 0) {
+          throw new GuardError('Kampus tidak ditemukan', 400);
         }
       }
-
-      const nextWasApproved =
-        existing.was_approved || (nextRole === 'seller' && nextSellerStatus === 'approved');
 
       const result = await client.query(
         `UPDATE users
          SET name = $1,
              phone = $2,
              campus_id = $3,
-             role = $4,
-             seller_status = $5,
-             was_approved = $6
-         WHERE id = $7
+             updated_at = NOW()
+         WHERE id = $4
          RETURNING id, name, email, role, seller_status, campus_id, phone`,
         [
           name.trim(),
-          phone ? phone.trim() : null,
-          parsedCampusId,
-          nextRole,
-          nextSellerStatus,
-          nextWasApproved,
+          cleanPhone,
+          nextCampusId,
           targetUserId,
         ]
       );
+
+      if (nextRole === 'seller' && nextCampusId !== existing.campus_id) {
+        await client.query(
+          `UPDATE stores SET campus_id = $1, updated_at = NOW() WHERE user_id = $2`,
+          [nextCampusId, targetUserId]
+        );
+      }
 
       return result.rows[0];
     });
@@ -137,7 +180,7 @@ export async function DELETE(request, { params }) {
     }
 
     const { id } = await params;
-    const targetUserId = Number(id);
+    const targetUserId = parsePositivePgInt(id);
 
     if (!targetUserId) {
       return NextResponse.json({ error: 'ID pengguna tidak valid' }, { status: 400 });

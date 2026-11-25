@@ -3,13 +3,20 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, User, Mail, Phone } from 'lucide-react';
-import Input, { Select } from '@/components/ui/Input';
+import { ArrowLeft, User, Mail, Phone, ShieldCheck, Store, ShoppingBag } from 'lucide-react';
+import Input from '@/components/ui/Input';
+import Badge, { SellerStatusBadge } from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import CampusSelector from '@/components/ui/CampusSelector';
 import { useToast } from '@/components/ui/Toast';
 import { preventEnterSubmitOnInput } from '@/lib/form-utils';
 import { validateFullName, validatePhone } from '@/lib/validation';
+
+const ROLE_META = {
+  admin: { label: 'Administrator (Admin)', variant: 'navy', icon: ShieldCheck },
+  seller: { label: 'Penjual (Seller)', variant: 'mint', icon: Store },
+  buyer: { label: 'Pembeli (Buyer)', variant: 'secondary', icon: ShoppingBag },
+};
 
 export default function EditUserClient({ user, initialCampus }) {
   const router = useRouter();
@@ -17,21 +24,24 @@ export default function EditUserClient({ user, initialCampus }) {
 
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone || '');
-  const [role, setRole] = useState(user.role);
-  const [sellerStatus, setSellerStatus] = useState(user.seller_status || 'pending');
   const [campus, setCampus] = useState(initialCampus);
 
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+  const roleMeta = ROLE_META[user.role] || ROLE_META.buyer;
+
   const validateForm = () => {
     const errs = {};
     const nameErr = validateFullName(name);
     if (nameErr) errs.name = nameErr;
-    if (phone) {
-      const phoneErr = validatePhone(phone);
+    if (phone.trim()) {
+      const phoneErr = validatePhone(phone.trim());
       if (phoneErr) errs.phone = phoneErr;
+    }
+    if (user.role === 'seller' && !campus?.id) {
+      errs.campus = 'Akun penjual wajib terikat ke salah satu kampus.';
     }
     return errs;
   };
@@ -51,16 +61,16 @@ export default function EditUserClient({ user, initialCampus }) {
     setLoading(true);
 
     try {
+      const payload = {
+        name: name.trim(),
+        phone: phone.trim(),
+        campus_id: campus ? campus.id : null,
+      };
+
       const res = await fetch(`/api/admin/users/${user.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          phone: phone.trim(),
-          role,
-          seller_status: role === 'seller' ? sellerStatus : null,
-          campus_id: campus ? campus.id : null,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -91,11 +101,16 @@ export default function EditUserClient({ user, initialCampus }) {
           <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           <span>Kembali ke Daftar Pengguna</span>
         </Link>
-        <h1 className="text-2xl font-bold text-ink tracking-tight">
-          Edit Pengguna: {user.name}
-        </h1>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h1 className="text-2xl font-bold text-ink tracking-tight">
+            Edit Pengguna: {user.name}
+          </h1>
+          <Badge variant={roleMeta.variant} size="xs" icon={roleMeta.icon}>
+            {roleMeta.label}
+          </Badge>
+        </div>
         <p className="text-xs md:text-sm text-ink-muted mt-1">
-          Ubah peran, status verifikasi penjual, nomor kontak, atau asal kampus pengguna.
+          Ubah nama, nomor kontak, atau asal kampus pengguna.
         </p>
       </div>
 
@@ -163,7 +178,8 @@ export default function EditUserClient({ user, initialCampus }) {
             onChange={(e) => {
               setPhone(e.target.value);
               if (fieldErrors.phone) {
-                const err = e.target.value ? validatePhone(e.target.value) : null;
+                const trimmed = e.target.value.trim();
+                const err = trimmed ? validatePhone(trimmed) : null;
                 setFieldErrors((prev) => {
                   const n = { ...prev };
                   if (err) n.phone = err;
@@ -173,40 +189,38 @@ export default function EditUserClient({ user, initialCampus }) {
               }
             }}
             onBlur={() => {
-              if (phone) {
-                const err = validatePhone(phone);
-                setFieldErrors((prev) => {
-                  const n = { ...prev };
-                  if (err) n.phone = err;
-                  else delete n.phone;
-                  return n;
-                });
-              }
+              const trimmed = phone.trim();
+              const err = trimmed ? validatePhone(trimmed) : null;
+              setFieldErrors((prev) => {
+                const n = { ...prev };
+                if (err) n.phone = err;
+                else delete n.phone;
+                return n;
+              });
             }}
             error={fieldErrors.phone}
             placeholder="081234567890"
           />
 
-          <Select
-            label="Peran Akun (Role)"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="buyer">Pembeli (Buyer)</option>
-            <option value="seller">Penjual (Seller)</option>
-            <option value="admin">Administrator (Admin)</option>
-          </Select>
-
-          {role === 'seller' && (
-            <Select
-              label="Status Verifikasi Penjual"
-              value={sellerStatus}
-              onChange={(e) => setSellerStatus(e.target.value)}
-            >
-              <option value="pending">Menunggu Verifikasi (Pending)</option>
-              <option value="approved">Terverifikasi (Approved)</option>
-              <option value="rejected">Ditolak (Rejected)</option>
-            </Select>
+          {user.role === 'seller' && (
+            <div className="p-3.5 rounded-lg bg-canvas border border-border-subtle flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-ink-secondary">
+                  Status Verifikasi Toko
+                </span>
+                <SellerStatusBadge
+                  status={user.seller_status}
+                  wasApproved={Boolean(user.was_approved)}
+                />
+              </div>
+              <p className="text-xs text-ink-muted leading-relaxed">
+                Persetujuan, penolakan, maupun penangguhan toko dikelola melalui menu{' '}
+                <Link href="/admin/sellers" className="text-brand-blue font-semibold hover:underline">
+                  Verifikasi Penjual
+                </Link>
+                .
+              </p>
+            </div>
           )}
 
           <div className="flex flex-col gap-1.5">
@@ -215,11 +229,21 @@ export default function EditUserClient({ user, initialCampus }) {
             </span>
             <CampusSelector
               value={campus}
-              onChange={setCampus}
-              allowAll={true}
+              onChange={(val) => {
+                setCampus(val);
+                if (fieldErrors.campus) {
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.campus;
+                    return n;
+                  });
+                }
+              }}
+              allowAll={user.role !== 'seller'}
               allLabel="Tidak Mengikat Kampus"
               placeholder="Pilih kampus..."
               fullWidth={true}
+              error={fieldErrors.campus}
             />
           </div>
 

@@ -9,18 +9,23 @@ export const metadata = {
   title: 'Edit Pengguna | Admin LepasIn',
 };
 
+const MAX_PG_INT = 2147483647;
+
 export default async function AdminEditUserPage({ params }) {
   await requireAdmin();
   const { id } = await params;
-  const userId = Number(id);
+  const trimmedId = String(id || '').trim();
+  const userId = /^\d+$/.test(trimmedId) ? Number(trimmedId) : NaN;
 
-  if (!userId) {
+  if (!Number.isInteger(userId) || userId < 1 || userId > MAX_PG_INT) {
     notFound();
   }
 
   const res = await query(
-    `SELECT u.id, u.name, u.email, u.phone, u.role, u.seller_status, u.campus_id,
-            c.id AS campus_id, c.name AS campus_name, c.short_name AS campus_short_name, c.city AS campus_city
+    `SELECT u.id, u.name, u.email, u.phone, u.role, u.seller_status,
+            COALESCE(u.was_approved, FALSE) AS was_approved,
+            u.campus_id,
+            c.name AS campus_name, c.short_name AS campus_short_name, c.city AS campus_city
      FROM users u
      LEFT JOIN campuses c ON c.id = u.campus_id
      WHERE u.id = $1`,

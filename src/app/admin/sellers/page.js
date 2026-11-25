@@ -8,14 +8,18 @@ export const metadata = {
   title: 'Verifikasi Penjual | Admin LepasIn',
 };
 
+const VALID_STATUS_TABS = ['all', 'pending', 'approved', 'rejected'];
+
 export default async function AdminSellersPage({ searchParams }) {
   await requireAdmin();
   const sp = await searchParams;
-  const initialStatus = sp?.status || 'all';
+  const rawStatus = Array.isArray(sp?.status) ? sp.status[0] : sp?.status;
+  const initialStatus = VALID_STATUS_TABS.includes(rawStatus) ? rawStatus : 'all';
 
-  const res = await query(`
+  const sellersRes = await query(`
     SELECT u.id, u.name, u.email, u.phone, u.seller_status,
            COALESCE(u.was_approved, false) AS was_approved,
+           u.rejection_reason,
            u.id_card_url,
            u.created_at,
            s.id AS store_id, s.name AS store_name, s.location, s.description,
@@ -29,5 +33,10 @@ export default async function AdminSellersPage({ searchParams }) {
       u.created_at DESC
   `);
 
-  return <SellersManager initialSellers={res.rows} initialStatus={initialStatus} />;
+  return (
+    <SellersManager
+      initialSellers={sellersRes.rows}
+      initialStatus={initialStatus}
+    />
+  );
 }

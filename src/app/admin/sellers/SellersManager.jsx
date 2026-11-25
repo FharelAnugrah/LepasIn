@@ -15,13 +15,37 @@ import {
   Eye,
   CreditCard,
   X,
+  AlertCircle,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
 import { SellerStatusBadge } from '@/components/ui/Badge';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 
-export default function SellersManager({ initialSellers, initialStatus = 'all' }) {
+const REJECT_REASON_PRESETS = [
+  'Foto selfie bersama KTM buram atau tidak terbaca dengan jelas.',
+  'Identitas pada KTM tidak sesuai dengan nama atau data pendaftar.',
+  'Kartu identitas bukan KTM mahasiswa aktif atau sudah kedaluwarsa.',
+  'Nama atau deskripsi lokasi toko melanggar ketentuan platform.',
+];
+
+function validateRejectionReason(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return 'Alasan penolakan wajib diisi.';
+  if (trimmed.length < 10) return 'Alasan penolakan minimal 10 karakter agar jelas bagi penjual.';
+  if (trimmed.length > 500) return 'Alasan penolakan maksimal 500 karakter.';
+  if ((trimmed.match(/[a-zA-Z]/g) || []).length < 3) {
+    return 'Alasan penolakan harus berupa keterangan yang jelas.';
+  }
+  return null;
+}
+
+export default function SellersManager({
+  initialSellers,
+  initialStatus = 'all',
+}) {
   const router = useRouter();
   const toast = useToast();
 
@@ -34,6 +58,14 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
     isOpen: false,
     seller: null,
     action: null,
+    loading: false,
+  });
+
+  const [rejectDialog, setRejectDialog] = useState({
+    isOpen: false,
+    seller: null,
+    reason: '',
+    error: '',
     loading: false,
   });
 
@@ -73,6 +105,56 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
     });
   };
 
+  const handleOpenRejectDialog = (seller) => {
+    setRejectDialog({
+      isOpen: true,
+      seller,
+      reason: '',
+      error: '',
+      loading: false,
+    });
+  };
+
+  const submitSellerAction = async (seller, action, reason = null) => {
+    const res = await fetch(`/api/admin/sellers/${seller.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reason ? { action, reason } : { action }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return { ok: false, error: data.error || 'Gagal mengubah status verifikasi' };
+    }
+
+    const updated = data.seller;
+    setSellers((prev) =>
+      prev.map((item) =>
+        item.id === seller.id
+          ? {
+              ...item,
+              seller_status: updated.seller_status,
+              was_approved: Boolean(updated.was_approved),
+              rejection_reason: updated.rejection_reason ?? null,
+            }
+          : item
+      )
+    );
+
+    const successMsg =
+      action === 'approve'
+        ? `Toko ${seller.store_name} berhasil disetujui.`
+        : action === 'reject'
+        ? `Pendaftaran toko ${seller.store_name} ditolak.`
+        : action === 'suspend'
+        ? `Toko ${seller.store_name} berhasil ditangguhkan.`
+        : `Toko ${seller.store_name} berhasil diaktifkan kembali.`;
+
+    toast.success(successMsg);
+    router.refresh();
+    return { ok: true };
+  };
+
   const handleConfirmAction = async () => {
     const { seller, action } = confirmDialog;
     if (!seller || !action) return;
@@ -80,51 +162,55 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
     setConfirmDialog((prev) => ({ ...prev, loading: true }));
 
     try {
-      const res = await fetch(`/api/admin/sellers/${seller.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error || 'Gagal mengubah status verifikasi');
-        setConfirmDialog({ isOpen: false, seller: null, action: null, loading: false });
-        return;
+      const result = await submitSellerAction(seller, action);
+      if (!result.ok) {
+        toast.error(result.error);
       }
-
-      const isSuspending =
-        action === 'reject' &&
-        (seller.seller_status === 'approved' || seller.was_approved);
-
-      const newStatus = action === 'approve' ? 'approved' : 'rejected';
-      setSellers((prev) =>
-        prev.map((item) =>
-          item.id === seller.id
-            ? {
-                ...item,
-                seller_status: newStatus,
-                was_approved: action === 'approve' ? true : item.was_approved,
-              }
-            : item
-        )
-      );
-
-      toast.success(
-        action === 'approve'
-          ? `Toko ${seller.store_name} berhasil disetujui.`
-          : isSuspending
-          ? `Toko ${seller.store_name} berhasil ditangguhkan.`
-          : `Pendaftaran toko ${seller.store_name} ditolak.`
-      );
-
-      setConfirmDialog({ isOpen: false, seller: null, action: null, loading: false });
-      router.refresh();
     } catch (err) {
       console.error(err);
       toast.error('Terjadi kesalahan koneksi');
+    } finally {
       setConfirmDialog({ isOpen: false, seller: null, action: null, loading: false });
+    }
+  };
+
+  const handleSubmitReject = async (e) => {
+    e.preventDefault();
+    const { seller, reason, loading } = rejectDialog;
+    if (!seller || loading) return;
+
+    const reasonErr = validateRejectionReason(reason);
+    if (reasonErr) {
+      setRejectDialog((prev) => ({ ...prev, error: reasonErr }));
+      return;
+    }
+
+    setRejectDialog((prev) => ({ ...prev, loading: true, error: '' }));
+
+    try {
+      const result = await submitSellerAction(seller, 'reject', reason.trim());
+      if (!result.ok) {
+        setRejectDialog((prev) => ({
+          ...prev,
+          loading: false,
+          error: result.error,
+        }));
+        return;
+      }
+      setRejectDialog({
+        isOpen: false,
+        seller: null,
+        reason: '',
+        error: '',
+        loading: false,
+      });
+    } catch (err) {
+      console.error(err);
+      setRejectDialog((prev) => ({
+        ...prev,
+        loading: false,
+        error: 'Terjadi kesalahan koneksi. Silakan coba lagi.',
+      }));
     }
   };
 
@@ -305,6 +391,20 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
                     </span>
                   )}
                 </div>
+
+                {seller.seller_status === 'rejected' &&
+                  !seller.was_approved &&
+                  seller.rejection_reason && (
+                    <div className="mt-2 p-3 rounded-lg bg-danger-bg border border-red-200 text-xs text-ink-secondary flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-danger-text shrink-0 mt-0.5" aria-hidden="true" />
+                      <div className="min-w-0">
+                        <p className="font-bold text-danger-text">Alasan Penolakan:</p>
+                        <p className="mt-0.5 leading-relaxed break-words">
+                          {seller.rejection_reason}
+                        </p>
+                      </div>
+                    </div>
+                  )}
               </div>
 
               <div className="flex items-center gap-2 pt-3 border-t border-border-subtle">
@@ -323,7 +423,7 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
                       variant="danger"
                       size="sm"
                       icon={XCircle}
-                      onClick={() => handleActionClick(seller, 'reject')}
+                      onClick={() => handleOpenRejectDialog(seller)}
                       className="flex-1"
                     >
                       Tolak
@@ -331,16 +431,22 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
                   </>
                 )}
 
-                {seller.seller_status === 'rejected' && (
+                {seller.seller_status === 'rejected' && seller.was_approved && (
                   <Button
                     variant="success"
                     size="sm"
                     icon={CheckCircle}
-                    onClick={() => handleActionClick(seller, 'approve')}
+                    onClick={() => handleActionClick(seller, 'reactivate')}
                     className="w-full"
                   >
-                    Ubah Jadi Disetujui
+                    Aktifkan Toko Kembali
                   </Button>
+                )}
+
+                {seller.seller_status === 'rejected' && !seller.was_approved && (
+                  <p className="w-full text-center text-xs font-medium text-ink-muted py-1.5">
+                    Pengajuan ditolak.
+                  </p>
                 )}
 
                 {seller.seller_status === 'approved' && (
@@ -348,7 +454,7 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
                     variant="danger"
                     size="sm"
                     icon={XCircle}
-                    onClick={() => handleActionClick(seller, 'reject')}
+                    onClick={() => handleActionClick(seller, 'suspend')}
                     className="w-full"
                   >
                     Tangguhkan Toko
@@ -369,31 +475,132 @@ export default function SellersManager({ initialSellers, initialStatus = 'all' }
         loading={confirmDialog.loading}
         title={
           confirmDialog.action === 'approve'
-            ? 'Setujui Pendaftaran Penjual?'
-            : confirmDialog.seller?.seller_status === 'approved' ||
-              confirmDialog.seller?.was_approved
-            ? 'Tangguhkan Toko Penjual?'
-            : 'Tolak Pendaftaran Penjual?'
+            ? 'Setujui Pengajuan Penjual?'
+            : confirmDialog.action === 'reactivate'
+            ? 'Aktifkan Toko Kembali?'
+            : 'Tangguhkan Toko Penjual?'
         }
         message={
           confirmDialog.action === 'approve'
             ? `Toko "${confirmDialog.seller?.store_name}" milik ${confirmDialog.seller?.name} akan diaktifkan dan dapat berjualan di kampusnya.`
-            : confirmDialog.seller?.seller_status === 'approved' ||
-              confirmDialog.seller?.was_approved
-            ? `Toko "${confirmDialog.seller?.store_name}" akan ditangguhkan dan produknya tidak akan tampil di katalog publik.`
-            : `Pendaftaran toko "${confirmDialog.seller?.store_name}" akan ditolak.`
+            : confirmDialog.action === 'reactivate'
+            ? `Toko "${confirmDialog.seller?.store_name}" akan diaktifkan kembali dan dapat berjualan di kampusnya.`
+            : `Toko "${confirmDialog.seller?.store_name}" akan ditangguhkan sementara. Seller akan melihat pop-up peringatan untuk menghubungi CS Admin.`
         }
         confirmText={
           confirmDialog.action === 'approve'
             ? 'Ya, Setujui'
-            : confirmDialog.seller?.seller_status === 'approved' ||
-              confirmDialog.seller?.was_approved
-            ? 'Ya, Tangguhkan Toko'
-            : 'Ya, Tolak'
+            : confirmDialog.action === 'reactivate'
+            ? 'Ya, Aktifkan Toko'
+            : 'Ya, Tangguhkan Toko'
         }
-        confirmVariant={confirmDialog.action === 'approve' ? 'success' : 'danger'}
-        type={confirmDialog.action === 'approve' ? 'success' : 'danger'}
+        confirmVariant={confirmDialog.action === 'suspend' ? 'danger' : 'success'}
+        type={confirmDialog.action === 'suspend' ? 'danger' : 'success'}
       />
+
+      <Modal
+        isOpen={rejectDialog.isOpen}
+        onClose={() =>
+          !rejectDialog.loading &&
+          setRejectDialog({ isOpen: false, seller: null, reason: '', error: '', loading: false })
+        }
+        title="Tolak Pengajuan Penjual"
+        maxWidth="max-w-lg"
+        showClose={!rejectDialog.loading}
+      >
+        <form noValidate onSubmit={handleSubmitReject} className="flex flex-col gap-4">
+          <div className="p-3.5 rounded-xl bg-danger-bg border border-red-200 text-xs leading-relaxed">
+            <p className="font-bold text-danger-text">
+              Penolakan bersifat final untuk pengajuan ini
+            </p>
+            <p className="text-ink-secondary mt-0.5">
+              Toko <strong className="text-ink">{rejectDialog.seller?.store_name}</strong> milik{' '}
+              <strong className="text-ink">{rejectDialog.seller?.name}</strong> akan ditolak
+              secara final. Penjual dapat melihat alasan penolakan atau menghapus pengajuan ini
+              untuk mendaftar ulang dengan data yang benar.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-ink-secondary">
+              Pilihan Cepat Alasan Umum (Klik untuk mengisi):
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {REJECT_REASON_PRESETS.map((preset) => {
+                const isSelected = rejectDialog.reason.trim() === preset;
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() =>
+                      setRejectDialog((prev) => ({
+                        ...prev,
+                        reason: preset,
+                        error: '',
+                      }))
+                    }
+                    className={`text-left text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                      isSelected
+                        ? 'bg-brand-blue-soft border-brand-blue-border text-brand-blue font-semibold'
+                        : 'bg-canvas border-border-subtle text-ink-secondary hover:text-ink hover:border-brand-blue-border'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <Textarea
+            id="reject-reason-textarea"
+            label="Alasan Penolakan (Wajib Diisi)"
+            rows={4}
+            maxLength={500}
+            placeholder="Jelaskan alasan pengajuan ditolak agar calon penjual mengetahui apa yang perlu diperbaiki..."
+            value={rejectDialog.reason}
+            onChange={(e) => {
+              const val = e.target.value;
+              setRejectDialog((prev) => ({
+                ...prev,
+                reason: val,
+                error: prev.error ? validateRejectionReason(val) || '' : '',
+              }));
+            }}
+            onBlur={() => {
+              const err = validateRejectionReason(rejectDialog.reason);
+              if (err) {
+                setRejectDialog((prev) => ({ ...prev, error: err }));
+              }
+            }}
+            error={rejectDialog.error}
+            helperText={`${rejectDialog.reason.trim().length}/500 karakter — alasan ini akan ditampilkan kepada pendaftar toko.`}
+            required
+          />
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border-subtle">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() =>
+                setRejectDialog({
+                  isOpen: false,
+                  seller: null,
+                  reason: '',
+                  error: '',
+                  loading: false,
+                })
+              }
+              disabled={rejectDialog.loading}
+            >
+              Batal
+            </Button>
+            <Button type="submit" variant="danger" loading={rejectDialog.loading}>
+              Tolak Pengajuan
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {viewingPhoto && (
         <div

@@ -17,13 +17,18 @@ if (!globalForPg._pgPool) {
 export const pool = globalForPg._pgPool;
 
 let isMigrationChecked = false;
+let migrationPromise = null;
 
 async function ensureMigration() {
   if (isMigrationChecked) return;
-  try {
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS was_approved BOOLEAN DEFAULT FALSE');
-    await pool.query("UPDATE users SET was_approved = TRUE WHERE seller_status = 'approved' AND was_approved IS NOT TRUE");
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS id_card_url TEXT');
+  if (migrationPromise) return await migrationPromise;
+
+  migrationPromise = (async () => {
+    try {
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS was_approved BOOLEAN DEFAULT FALSE');
+      await pool.query("UPDATE users SET was_approved = TRUE WHERE seller_status = 'approved' AND was_approved IS NOT TRUE");
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS rejection_reason TEXT');
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS id_card_url TEXT');
     try {
       await pool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE');
       await pool.query('CREATE INDEX IF NOT EXISTS products_is_deleted_idx ON products (is_deleted)');
@@ -66,11 +71,31 @@ async function ensureMigration() {
       CREATE INDEX IF NOT EXISTS chats_receiver_idx ON chats (receiver_id);
     `);
 
+    try {
+      await pool.query(`DROP TABLE IF EXISTS seller_verification_history CASCADE`);
+
+      await pool.query(
+        `UPDATE users
+         SET rejection_reason = 'Foto selfie dengan KTM buram dan data kampus belum terbaca jelas.'
+         WHERE role = 'seller'
+           AND seller_status = 'rejected'
+           AND COALESCE(was_approved, FALSE) = FALSE
+           AND (rejection_reason IS NULL OR BTRIM(rejection_reason) = '')`
+      );
+    } catch (rejectionMigrationErr) {
+      console.warn('Migration seller rejection_reason notice:', rejectionMigrationErr.message);
+    }
+
     isMigrationChecked = true;
   } catch (err) {
     console.error('Migration error in db.js:', err);
     // Abaikan jika tabel belum siap
+  } finally {
+    migrationPromise = null;
   }
+  })();
+
+  return await migrationPromise;
 }
 
 /**
