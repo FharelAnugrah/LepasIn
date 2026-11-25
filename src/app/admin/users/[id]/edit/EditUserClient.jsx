@@ -9,8 +9,14 @@ import Badge, { SellerStatusBadge } from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import CampusSelector from '@/components/ui/CampusSelector';
 import { useToast } from '@/components/ui/Toast';
-import { preventEnterSubmitOnInput } from '@/lib/form-utils';
-import { validateFullName, validatePhone } from '@/lib/validation';
+import { focusFirstInvalidField, preventEnterSubmitOnInput } from '@/lib/form-utils';
+import { validateEmail, validateFullName, validatePhone } from '@/lib/validation';
+
+const FIELD_INPUT_IDS = {
+  name: 'admin-edit-name',
+  email: 'admin-edit-email',
+  phone: 'admin-edit-phone',
+};
 
 const ROLE_META = {
   admin: { label: 'Administrator (Admin)', variant: 'navy', icon: ShieldCheck },
@@ -23,6 +29,7 @@ export default function EditUserClient({ user, initialCampus }) {
   const toast = useToast();
 
   const [name, setName] = useState(user.name);
+  const [email, setEmail] = useState(user.email || '');
   const [phone, setPhone] = useState(user.phone || '');
   const [campus, setCampus] = useState(initialCampus);
 
@@ -36,6 +43,10 @@ export default function EditUserClient({ user, initialCampus }) {
     const errs = {};
     const nameErr = validateFullName(name);
     if (nameErr) errs.name = nameErr;
+
+    const emailErr = validateEmail(email);
+    if (emailErr) errs.email = emailErr;
+
     if (phone.trim()) {
       const phoneErr = validatePhone(phone.trim());
       if (phoneErr) errs.phone = phoneErr;
@@ -54,6 +65,10 @@ export default function EditUserClient({ user, initialCampus }) {
     const errs = validateForm();
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
+      const invalidIds = ['name', 'email', 'phone']
+        .filter((key) => errs[key])
+        .map((key) => FIELD_INPUT_IDS[key]);
+      focusFirstInvalidField(invalidIds);
       return;
     }
 
@@ -63,6 +78,7 @@ export default function EditUserClient({ user, initialCampus }) {
     try {
       const payload = {
         name: name.trim(),
+        email: email.trim().toLowerCase(),
         phone: phone.trim(),
         campus_id: campus ? campus.id : null,
       };
@@ -77,6 +93,13 @@ export default function EditUserClient({ user, initialCampus }) {
 
       if (!res.ok) {
         setError(data.error || 'Gagal memperbarui pengguna');
+        if (data.errors && typeof data.errors === 'object') {
+          setFieldErrors((prev) => ({ ...prev, ...data.errors }));
+          const invalidIds = ['name', 'email', 'phone']
+            .filter((key) => data.errors[key])
+            .map((key) => FIELD_INPUT_IDS[key]);
+          focusFirstInvalidField(invalidIds);
+        }
         setLoading(false);
         return;
       }
@@ -110,7 +133,7 @@ export default function EditUserClient({ user, initialCampus }) {
           </Badge>
         </div>
         <p className="text-xs md:text-sm text-ink-muted mt-1">
-          Ubah nama, nomor kontak, atau asal kampus pengguna.
+          Ubah nama, alamat email, nomor kontak, atau asal kampus pengguna.
         </p>
       </div>
 
@@ -161,13 +184,39 @@ export default function EditUserClient({ user, initialCampus }) {
           />
 
           <Input
-            label="Alamat Email (Tidak dapat diubah)"
+            id="admin-edit-email"
+            label="Alamat Email"
             type="email"
             icon={Mail}
-            value={user.email}
-            disabled
-            readOnly
-            helperText="Alamat email terikat pada akun pengguna"
+            value={email}
+            onChange={(e) => {
+              const nextVal = e.target.value;
+              setEmail(nextVal);
+              if (fieldErrors.email && !validateEmail(nextVal)) {
+                setFieldErrors((prev) => {
+                  const n = { ...prev };
+                  delete n.email;
+                  return n;
+                });
+              }
+            }}
+            onBlur={() => {
+              const err = validateEmail(email);
+              setFieldErrors((prev) => {
+                const n = { ...prev };
+                if (err) n.email = err;
+                else delete n.email;
+                return n;
+              });
+            }}
+            error={fieldErrors.email}
+            placeholder="nama@kampus.ac.id"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            helperText="Pastikan alamat email aktif dan unik karena digunakan untuk login akun ini"
+            required
           />
 
           <Input

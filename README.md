@@ -119,7 +119,7 @@ flowchart LR
 | **Publik & Pencarian** | `/api/products`, `/api/products/[id]`, `/api/search/instant`, `/api/campuses`, `/api/categories` | Query katalog terfilter, detail produk aktif, pencarian instan navbar, daftar kampus & kategori |
 | **Upload & Media** | `/api/upload`, `/api/uploads/[folder]/[filename]` | Validasi *magic bytes* gambar (`JPEG`, `PNG`, `WebP`) serta penyajian berkas terunggah lokal |
 | **Buyer** | `/api/buyer/cart`, `/api/buyer/cart/[id]`, `/api/buyer/orders`, `/api/buyer/orders/[id]`, `/api/buyer/wishlist`, `/api/buyer/reviews`, `/api/buyer/addresses`, `/api/buyer/addresses/[id]`, `/api/buyer/profile` | CRUD keranjang, pembuatan dan penyelesaian/pembatalan pesanan, toggle wishlist, pengiriman ulasan, manajemen alamat pengiriman, dan edit profil |
-| **Seller** | `/api/seller/products`, `/api/seller/products/[id]`, `/api/seller/orders/[id]`, `/api/seller/store` | Tambah/edit/soft-delete produk toko, pembaruan status pesanan masuk, dan pengaturan profil toko |
+| **Seller** | `/api/seller/products`, `/api/seller/products/[id]`, `/api/seller/orders/[id]`, `/api/seller/store`, `/api/seller/profile` | Tambah/edit/soft-delete produk toko, pembaruan status pesanan masuk, pengaturan profil toko, dan edit identitas pribadi penjual |
 | **Chat** | `/api/chat` | Pengambilan daftar ruang obrolan dan pengiriman pesan terpadu buyer–seller (`GET`, `POST`) |
 | **Admin** | `/api/admin/sellers/[id]`, `/api/admin/users/[id]`, `/api/admin/categories`, `/api/admin/categories/[id]`, `/api/admin/campuses`, `/api/admin/campuses/[id]`, `/api/admin/products/[id]` | Keputusan verifikasi/penangguhan penjual (`PATCH`), edit pengguna tanpa bypass status toko, CRUD kampus & kategori berproteksi relasi, dan moderasi produk |
 
@@ -154,7 +154,6 @@ LepasIn/
 │   │   ├── layout.js                # Root layout & pemuatan font Plus Jakarta Sans
 │   │   └── page.js                  # Beranda LepasIn
 │   ├── components/
-│   │   ├── home/                    # Showcase 3D halaman utama
 │   │   ├── layout/                  # Navbar, Footer, BottomNav, DashboardShell, Sidebar
 │   │   ├── product/                 # ProductCard katalog
 │   │   └── ui/                      # Button, Input, RupiahInput, Select, Modal, ConfirmDialog, Toast, ImageUploader, CameraModal

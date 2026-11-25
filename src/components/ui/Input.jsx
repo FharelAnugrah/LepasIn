@@ -35,7 +35,7 @@ const Input = forwardRef(function Input(
   const helperId = !error && helperText ? `${inputId}-helper` : undefined;
   const radius = pill ? 'rounded-full' : 'rounded-lg';
   const resolvedReadOnly =
-    readOnly ?? (props.value !== undefined && !props.onChange && props.disabled ? true : undefined);
+    readOnly ?? (props.value !== undefined && !props.onChange ? true : undefined);
 
   return (
     <div className="w-full flex flex-col gap-1.5">
@@ -122,7 +122,7 @@ export const Textarea = forwardRef(function Textarea(
   const errorId = error ? `${inputId}-error` : undefined;
   const helperId = !error && helperText ? `${inputId}-helper` : undefined;
   const resolvedReadOnly =
-    readOnly ?? (props.value !== undefined && !props.onChange && props.disabled ? true : undefined);
+    readOnly ?? (props.value !== undefined && !props.onChange ? true : undefined);
 
   return (
     <div className="w-full flex flex-col gap-1.5">

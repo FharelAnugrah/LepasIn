@@ -44,7 +44,7 @@ export default function BuyerOrderActions({ orderId, status, deliveryMethod = 'm
   return (
     <div className="flex flex-wrap items-center gap-2 shrink-0">
       <Button
-        href={`/chat?order_id=${orderId}`}
+        href={`/chat?order_id=${orderId}&returnUrl=${encodeURIComponent('/buyer/orders')}`}
         size="sm"
         variant="secondary"
         icon={MessageCircle}

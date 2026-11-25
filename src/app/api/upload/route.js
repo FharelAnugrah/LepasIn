@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { getCurrentUser } from '@/lib/auth';
+import { isValidImageMagicBytes } from '@/lib/image-util';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,48 +17,6 @@ const MAX_VERIFICATION_SIZE = 5 * 1024 * 1024; // 5 MB
 // Untuk umum (produk, avatar, toko): JPEG, PNG, dan WebP, maksimal 10 MB
 const GENERAL_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_GENERAL_SIZE = 10 * 1024 * 1024; // 10 MB
-
-/**
- * Validasi magic bytes untuk file gambar asli (mencegah file berbahaya/palsu)
- * JPEG: FF D8 FF
- * PNG: 89 50 4E 47 0D 0A 1A 0A
- * WebP: 52 49 46 46 (RIFF) ... 57 45 42 50 (WEBP)
- */
-function isValidMagicBytes(buffer, mimeType) {
-  if (!buffer || buffer.length < 12) return false;
-
-  if (mimeType === 'image/jpeg') {
-    return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-  }
-
-  if (mimeType === 'image/png') {
-    return (
-      buffer[0] === 0x89 &&
-      buffer[1] === 0x50 &&
-      buffer[2] === 0x4e &&
-      buffer[3] === 0x47 &&
-      buffer[4] === 0x0d &&
-      buffer[5] === 0x0a &&
-      buffer[6] === 0x1a &&
-      buffer[7] === 0x0a
-    );
-  }
-
-  if (mimeType === 'image/webp') {
-    return (
-      buffer[0] === 0x52 &&
-      buffer[1] === 0x49 &&
-      buffer[2] === 0x46 &&
-      buffer[3] === 0x46 &&
-      buffer[8] === 0x57 &&
-      buffer[9] === 0x45 &&
-      buffer[10] === 0x42 &&
-      buffer[11] === 0x50
-    );
-  }
-
-  return false;
-}
 
 export async function POST(request) {
   try {
@@ -139,7 +98,7 @@ export async function POST(request) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    if (!isValidMagicBytes(buffer, mimeType)) {
+    if (!isValidImageMagicBytes(buffer, mimeType)) {
       return NextResponse.json(
         { error: 'File gambar rusak atau bukan file gambar yang valid.' },
         { status: 400 }

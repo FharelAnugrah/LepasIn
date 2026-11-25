@@ -8,13 +8,21 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import CampusSelector from '@/components/ui/CampusSelector';
 import { useToast } from '@/components/ui/Toast';
-import { validateFullName, validatePhone } from '@/lib/validation';
+import { focusFirstInvalidField } from '@/lib/form-utils';
+import { validateFullName, validatePhone, validateEmail } from '@/lib/validation';
+
+const FIELD_INPUT_IDS = {
+  name: 'profile-name',
+  email: 'profile-email',
+  phone: 'profile-phone',
+};
 
 export default function ProfileForm({ user, initialCampus }) {
   const router = useRouter();
   const toast = useToast();
 
   const [name, setName] = useState(user.name);
+  const [email, setEmail] = useState(user.email || '');
   const [phone, setPhone] = useState(user.phone || '');
   const [campus, setCampus] = useState(initialCampus);
   const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || '');
@@ -70,6 +78,10 @@ export default function ProfileForm({ user, initialCampus }) {
     const errs = {};
     const nameErr = validateFullName(name);
     if (nameErr) errs.name = nameErr;
+
+    const emailErr = validateEmail(email);
+    if (emailErr) errs.email = emailErr;
+
     if (phone) {
       const phoneErr = validatePhone(phone);
       if (phoneErr) errs.phone = phoneErr;
@@ -84,6 +96,9 @@ export default function ProfileForm({ user, initialCampus }) {
     const errs = validateForm();
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
+      focusFirstInvalidField(
+        ['name', 'email', 'phone'].filter((key) => errs[key]).map((key) => FIELD_INPUT_IDS[key])
+      );
       return;
     }
 
@@ -96,6 +111,7 @@ export default function ProfileForm({ user, initialCampus }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
+          email: email.trim().toLowerCase(),
           phone: phone.trim(),
           campus_id: campus ? campus.id : null,
           avatar_url: avatarUrl ? avatarUrl.trim() : null,
@@ -105,11 +121,25 @@ export default function ProfileForm({ user, initialCampus }) {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.errors && typeof data.errors === 'object') {
+          setFieldErrors((prev) => ({ ...prev, ...data.errors }));
+          focusFirstInvalidField(
+            ['name', 'email', 'phone']
+              .filter((key) => data.errors[key])
+              .map((key) => FIELD_INPUT_IDS[key])
+          );
+        }
         toast.error(data.error || 'Gagal menyimpan profil');
         setLoading(false);
         return;
       }
 
+      if (data.user?.phone !== undefined) {
+        setPhone(data.user.phone || '');
+      }
+      if (data.user?.email) {
+        setEmail(data.user.email);
+      }
       toast.success('Profil berhasil diperbarui.');
       setLoading(false);
       router.refresh();
@@ -243,10 +273,32 @@ export default function ProfileForm({ user, initialCampus }) {
             />
 
             <Input
+              id="profile-email"
               label="Email Mahasiswa"
               type="email"
               icon={Mail}
-              value={user.email}
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (fieldErrors.email) {
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.email;
+                    return n;
+                  });
+                }
+              }}
+              onBlur={() => {
+                const err = validateEmail(email);
+                setFieldErrors((prev) => {
+                  const n = { ...prev };
+                  if (err) n.email = err;
+                  else delete n.email;
+                  return n;
+                });
+              }}
+              error={fieldErrors.email}
+              required
             />
 
             <Input

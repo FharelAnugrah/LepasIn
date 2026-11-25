@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { withTransaction } from '@/lib/db';
-import { normalizePhoneNumber, validateFullName, validatePhone } from '@/lib/validation';
+import { createSession } from '@/lib/session';
+import {
+  normalizePhoneNumber,
+  validateEmail,
+  validateFullName,
+  validatePhone,
+} from '@/lib/validation';
 import {
   GuardError,
   findActiveOrdersByUserId,
@@ -49,7 +55,7 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Format payload tidak valid' }, { status: 400 });
     }
 
-    const { name, phone, campus_id, role, seller_status } = body;
+    const { name, email, phone, campus_id, role, seller_status } = body;
 
     if (typeof name !== 'string') {
       return NextResponse.json({ error: 'Nama lengkap wajib diisi.' }, { status: 400 });
@@ -57,7 +63,32 @@ export async function PATCH(request, { params }) {
 
     const nameErr = validateFullName(name);
     if (nameErr) {
-      return NextResponse.json({ error: nameErr }, { status: 400 });
+      return NextResponse.json(
+        { error: nameErr, errors: { name: nameErr } },
+        { status: 400 }
+      );
+    }
+
+    const isEmailOmitted = email === undefined;
+    let normalizedEmail = null;
+    if (!isEmailOmitted) {
+      if (typeof email !== 'string') {
+        return NextResponse.json(
+          {
+            error: 'Alamat email aktif wajib diisi.',
+            errors: { email: 'Alamat email aktif wajib diisi.' },
+          },
+          { status: 400 }
+        );
+      }
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        return NextResponse.json(
+          { error: emailErr, errors: { email: emailErr } },
+          { status: 400 }
+        );
+      }
+      normalizedEmail = email.trim().toLowerCase();
     }
 
     let cleanPhone = null;
@@ -68,7 +99,10 @@ export async function PATCH(request, { params }) {
       if (phone.trim() !== '') {
         const phoneErr = validatePhone(phone);
         if (phoneErr) {
-          return NextResponse.json({ error: phoneErr }, { status: 400 });
+          return NextResponse.json(
+            { error: phoneErr, errors: { phone: phoneErr } },
+            { status: 400 }
+          );
         }
         cleanPhone = normalizePhoneNumber(phone);
       }
@@ -85,7 +119,7 @@ export async function PATCH(request, { params }) {
 
     const updatedUser = await withTransaction(async (client) => {
       const existingRes = await client.query(
-        `SELECT id, role, seller_status, was_approved, campus_id FROM users WHERE id = $1 FOR UPDATE`,
+        `SELECT id, email, role, seller_status, was_approved, campus_id FROM users WHERE id = $1 FOR UPDATE`,
         [targetUserId]
       );
 
@@ -98,6 +132,20 @@ export async function PATCH(request, { params }) {
       // Admin tidak diperbolehkan mengganti role akun user
       if (role !== undefined && role !== null && role !== existing.role) {
         throw new GuardError('Peran akun (role) tidak dapat diubah.', 400);
+      }
+
+      const nextEmail = isEmailOmitted ? existing.email : normalizedEmail;
+      if (nextEmail.toLowerCase() !== String(existing.email || '').toLowerCase()) {
+        const duplicateEmail = await client.query(
+          `SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND id <> $2 LIMIT 1`,
+          [nextEmail, targetUserId]
+        );
+        if (duplicateEmail.rows.length > 0) {
+          const msg = 'Alamat email ini sudah digunakan oleh akun lain.';
+          const err = new GuardError(msg, 409);
+          err.details = { errors: { email: msg } };
+          throw err;
+        }
       }
 
       const nextRole = existing.role;
@@ -135,13 +183,15 @@ export async function PATCH(request, { params }) {
       const result = await client.query(
         `UPDATE users
          SET name = $1,
-             phone = $2,
-             campus_id = $3,
+             email = $2,
+             phone = $3,
+             campus_id = $4,
              updated_at = NOW()
-         WHERE id = $4
+         WHERE id = $5
          RETURNING id, name, email, role, seller_status, campus_id, phone`,
         [
           name.trim(),
+          nextEmail,
           cleanPhone,
           nextCampusId,
           targetUserId,
@@ -158,14 +208,36 @@ export async function PATCH(request, { params }) {
       return result.rows[0];
     });
 
+    if (updatedUser.id === admin.id) {
+      await createSession({
+        userId: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        sellerStatus: updatedUser.seller_status,
+        campusId: updatedUser.campus_id,
+        storeId: admin.store_id,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       user: updatedUser,
       message: 'Data pengguna berhasil diperbarui',
     });
   } catch (error) {
+    if (error?.code === '23505') {
+      const msg = 'Alamat email ini sudah digunakan oleh akun lain.';
+      return NextResponse.json(
+        { error: msg, errors: { email: msg } },
+        { status: 409 }
+      );
+    }
     if (error?.statusCode) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
+      return NextResponse.json(
+        { error: error.message, ...(error.details || {}) },
+        { status: error.statusCode }
+      );
     }
     console.error('Update user error:', error);
     return NextResponse.json({ error: 'Gagal memperbarui pengguna' }, { status: 500 });

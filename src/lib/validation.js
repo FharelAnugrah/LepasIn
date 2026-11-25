@@ -6,7 +6,10 @@
 
 // 1. REGEX RESMI
 export const FULL_NAME_REGEX = /^[A-Za-z.' ]+$/;
-export const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+// Local-part: minimal 2 karakter, tidak boleh diawali/diakhiri titik atau tanda minus
+// Domain: minimal 3 karakter sebelum TLD, TLD minimal 2 karakter
+export const EMAIL_REGEX =
+  /^[a-zA-Z0-9][a-zA-Z0-9._%+-]{1,62}[a-zA-Z0-9]@[a-zA-Z0-9][a-zA-Z0-9.-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
 export const STORE_NAME_REGEX = /^[a-zA-Z0-9\s&'.,\-_/]+$/;
 export const LOCATION_REGEX = /^[a-zA-Z0-9\s&'.,\-_/()]+$/;
 export const CAMPUS_NAME_REGEX = /^[a-zA-Z0-9\s&'.,\-_/()]+$/;
@@ -60,7 +63,9 @@ export function validateFullName(value) {
 }
 
 /**
- * Validasi Format Alamat Email
+ * Validasi Format Alamat Email dengan pesan error spesifik per kondisi.
+ * - Local-part minimal 3 karakter, tidak boleh diawali/diakhiri tanda baca
+ * - Domain minimal 4 karakter (mis. x.id), TLD minimal 2 karakter
  */
 export function validateEmail(value) {
   if (value === undefined || value === null) {
@@ -70,12 +75,70 @@ export function validateEmail(value) {
   if (!trimmed) {
     return 'Alamat email aktif wajib diisi.';
   }
-  if (!EMAIL_REGEX.test(trimmed)) {
-    return 'Format email tidak valid. Contoh: nama@kampus.ac.id atau nama@gmail.com.';
-  }
   if (trimmed.length > 255) {
     return 'Alamat email maksimal 255 karakter.';
   }
+
+  const atIndex = trimmed.indexOf('@');
+
+  // Tidak mengandung @
+  if (atIndex === -1) {
+    return 'Email harus mengandung karakter @. Contoh: nama@gmail.com.';
+  }
+
+  // Lebih dari satu @
+  if (trimmed.indexOf('@', atIndex + 1) !== -1) {
+    return 'Email tidak boleh mengandung lebih dari satu karakter @.';
+  }
+
+  const localPart = trimmed.slice(0, atIndex);
+  const domainPart = trimmed.slice(atIndex + 1);
+
+  // Local-part kosong
+  if (!localPart) {
+    return 'Bagian sebelum @ tidak boleh kosong. Contoh: nama@gmail.com.';
+  }
+
+  // Local-part terlalu pendek
+  if (localPart.length < 3) {
+    return `Bagian sebelum @ terlalu pendek (minimal 3 karakter). Contoh: nama@gmail.com.`;
+  }
+
+  // Local-part diawali/diakhiri tanda baca tidak valid
+  if (/^[._%+-]/.test(localPart) || /[._%+-]$/.test(localPart)) {
+    return 'Bagian sebelum @ tidak boleh diawali atau diakhiri tanda baca (titik, underscore, dll.).';
+  }
+
+  // Domain kosong
+  if (!domainPart) {
+    return 'Bagian domain setelah @ tidak boleh kosong. Contoh: nama@gmail.com.';
+  }
+
+  const dotIndex = domainPart.lastIndexOf('.');
+
+  // Tidak ada titik di domain
+  if (dotIndex === -1) {
+    return 'Domain email harus mengandung titik. Contoh: nama@gmail.com atau nama@kampus.ac.id.';
+  }
+
+  const tld = domainPart.slice(dotIndex + 1);
+  const domainName = domainPart.slice(0, dotIndex);
+
+  // TLD terlalu pendek
+  if (tld.length < 2) {
+    return 'Ekstensi domain (bagian setelah titik terakhir) minimal 2 karakter. Contoh: .com, .id, .ac.id.';
+  }
+
+  // Domain terlalu pendek
+  if (domainName.length < 2) {
+    return 'Nama domain terlalu pendek. Contoh: gmail.com, yahoo.com, kampus.ac.id.';
+  }
+
+  // Validasi keseluruhan dengan regex
+  if (!EMAIL_REGEX.test(trimmed)) {
+    return 'Format email tidak valid. Contoh: nama@kampus.ac.id atau nama@gmail.com.';
+  }
+
   return null;
 }
 

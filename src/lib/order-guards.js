@@ -15,27 +15,6 @@ export class GuardError extends Error {
   }
 }
 
-export const ACTIVE_ORDER_STATUSES = ['pending_payment', 'processing', 'shipped'];
-
-/**
- * Konversi kode status pesanan ke label Bahasa Indonesia yang mudah dipahami.
- * @param {string} status
- * @param {string} [deliveryMethod='delivery']
- * @returns {string}
- */
-export function formatOrderStatusLabel(status, deliveryMethod = 'delivery') {
-  if (status === 'pending_payment') {
-    return deliveryMethod === 'meetup'
-      ? 'Menunggu Konfirmasi COD'
-      : 'Menunggu Konfirmasi Pembayaran';
-  }
-  if (status === 'processing') return 'Sedang Diproses Penjual';
-  if (status === 'shipped') {
-    return deliveryMethod === 'meetup' ? 'Siap Ketemuan di Kampus' : 'Sedang Dikirim';
-  }
-  return status;
-}
-
 /**
  * Format ringkasan singkat daftar pesanan aktif untuk pesan toast agar tetap ringkas dan terbaca.
  * @param {Array<{order_code: string}>} orders
@@ -63,21 +42,6 @@ export async function findActiveOrdersByProduct(dbClient, productId) {
     [productId]
   );
   return res.rows;
-}
-
-/**
- * Hitung pesanan selesai yang memuat produk tertentu (untuk menjaga arsip & ulasan).
- */
-export async function countCompletedOrdersByProduct(dbClient, productId) {
-  const res = await dbClient.query(
-    `SELECT COUNT(*)::int AS count
-     FROM order_items oi
-     JOIN orders o ON o.id = oi.order_id
-     WHERE oi.product_id = $1
-       AND o.status = 'completed'`,
-    [productId]
-  );
-  return res.rows[0]?.count || 0;
 }
 
 /**

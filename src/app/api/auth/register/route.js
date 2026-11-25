@@ -5,13 +5,10 @@ import { hashPassword } from '@/lib/auth';
 import { createSession } from '@/lib/session';
 import {
   FULL_NAME_REGEX,
-  validateFullName,
+  normalizePhoneNumber,
   validateEmail,
+  validateFullName,
   validatePhone,
-  validatePassword,
-  validateConfirmPassword,
-  validateStoreName,
-  validateLocation,
 } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
@@ -27,9 +24,15 @@ const registerSchema = z
     email: z
       .string({ message: 'Alamat email aktif wajib diisi.' })
       .trim()
-      .min(1, 'Alamat email aktif wajib diisi.')
-      .email('Format email tidak valid. Contoh: nama@kampus.ac.id atau nama@gmail.com.')
-      .max(255, 'Alamat email maksimal 255 karakter'),
+      .superRefine((val, ctx) => {
+        const emailErr = validateEmail(val);
+        if (emailErr) {
+          ctx.addIssue({
+            code: 'custom',
+            message: emailErr,
+          });
+        }
+      }),
     phone: z
       .string({ message: 'Nomor WhatsApp wajib diisi untuk koordinasi transaksi/COD.' })
       .trim()
@@ -203,9 +206,7 @@ export async function POST(request) {
     const { name, email, phone, password, role, campus_id, store_name, location, id_card_url } = validated.data;
     const normalizedEmail = email.toLowerCase();
     const parsedCampusId = campus_id ? Number(campus_id) : null;
-    const cleanPhone = phone
-      ? phone.trim().replace(/[\s-]/g, '').replace(/^(\+62|62)/, '0')
-      : null;
+    const cleanPhone = phone ? normalizePhoneNumber(phone) : null;
 
     // Cek apakah email sudah terdaftar
     const existing = await query(

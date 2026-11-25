@@ -257,7 +257,7 @@ export default function CheckoutClient({
 
       if (codOrder) {
         toast.success('Pesanan COD berhasil dibuat. Mengalihkan ke ruang koordinasi...');
-        router.push(`/chat?order_id=${codOrder.id}`);
+        router.push(`/chat?order_id=${codOrder.id}&returnUrl=${encodeURIComponent('/buyer/orders')}`);
       } else {
         toast.success('Pesanan berhasil dibuat dan sedang diproses penjual.');
         router.push('/buyer/orders');

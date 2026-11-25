@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { getSafeReturnUrl } from '@/lib/params';
 import Navbar from '@/components/layout/Navbar';
 import ChatClient from './ChatClient';
 
@@ -18,14 +19,23 @@ export default async function ChatPage({ searchParams }) {
   const initialStoreId = sp?.store_id ? Number(sp.store_id) : null;
   const initialProductId = sp?.product_id ? Number(sp.product_id) : null;
   const initialBuyerId = sp?.buyer_id ? Number(sp.buyer_id) : null;
+  const initialReturnUrl = getSafeReturnUrl(sp?.returnUrl);
 
   if (!user) {
-    let redirectUrl = '/chat';
+    const params = new URLSearchParams();
     if (initialOrderId) {
-      redirectUrl = `/chat?order_id=${initialOrderId}`;
+      params.set('order_id', String(initialOrderId));
     } else if (initialStoreId) {
-      redirectUrl = `/chat?store_id=${initialStoreId}${initialProductId ? `&product_id=${initialProductId}` : ''}`;
+      params.set('store_id', String(initialStoreId));
+      if (initialProductId) {
+        params.set('product_id', String(initialProductId));
+      }
     }
+    if (initialReturnUrl) {
+      params.set('returnUrl', initialReturnUrl);
+    }
+    const qs = params.toString();
+    const redirectUrl = qs ? `/chat?${qs}` : '/chat';
     redirect(`/login?next=${encodeURIComponent(redirectUrl)}`);
   }
 
@@ -65,6 +75,7 @@ export default async function ChatPage({ searchParams }) {
           initialStoreId={initialStoreId}
           initialProductId={initialProductId}
           initialBuyerId={initialBuyerId}
+          initialReturnUrl={initialReturnUrl}
         />
       </main>
     </div>

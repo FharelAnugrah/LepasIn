@@ -58,3 +58,47 @@ export function toIlikeSearchPattern(value) {
   if (!trimmed) return null;
   return `%${escapeLikePattern(trimmed)}%`;
 }
+
+/**
+ * Validasi path tujuan kembali (returnUrl) agar tetap berada di origin yang sama
+ * dan mencegah loop ke halaman /chat, /login, /register, atau /pending-seller.
+ * @param {string|string[]|null|undefined} value
+ * @returns {string|null}
+ */
+export function getSafeReturnUrl(value) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw === undefined || raw === null) return null;
+  const trimmed = String(raw).trim();
+  if (
+    !trimmed ||
+    !trimmed.startsWith('/') ||
+    trimmed.startsWith('//') ||
+    trimmed.startsWith('/\\') ||
+    /[\r\n\t\0\\]/.test(trimmed)
+  ) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(trimmed, 'http://localhost');
+    if (parsed.origin !== 'http://localhost') return null;
+
+    const p = parsed.pathname;
+    if (
+      p === '/chat' ||
+      p.startsWith('/chat/') ||
+      p === '/login' ||
+      p.startsWith('/login/') ||
+      p === '/register' ||
+      p.startsWith('/register/') ||
+      p === '/pending-seller' ||
+      p.startsWith('/pending-seller/')
+    ) {
+      return null;
+    }
+
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return null;
+  }
+}

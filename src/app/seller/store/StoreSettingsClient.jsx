@@ -643,7 +643,7 @@ export default function StoreSettingsClient({
                 });
               }}
               error={profileErrors.phone}
-              helperText="Gunakan format 08... atau 62... untuk koordinasi COD & admin"
+              helperText="Gunakan format 08... atau 62..."
               required
             />
 

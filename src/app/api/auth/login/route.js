@@ -3,11 +3,15 @@ import { z } from 'zod';
 import { query } from '@/lib/db';
 import { verifyPassword } from '@/lib/auth';
 import { createSession } from '@/lib/session';
+import { EMAIL_REGEX } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
 const loginSchema = z.object({
-  email: z.string().trim().email('Format email tidak valid'),
+  email: z
+    .string()
+    .trim()
+    .regex(EMAIL_REGEX, 'Format email tidak valid'),
   password: z.string().min(1, 'Password wajib diisi'),
   next: z.string().optional(),
 });

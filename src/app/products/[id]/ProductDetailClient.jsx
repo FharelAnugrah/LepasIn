@@ -402,7 +402,9 @@ export default function ProductDetailClient({
                 <Link
                   href={
                     user
-                      ? `/chat?store_id=${product.store_id}&product_id=${product.id}`
+                      ? `/chat?store_id=${product.store_id}&product_id=${product.id}&returnUrl=${encodeURIComponent(
+                          `/products/${product.id}`
+                        )}`
                       : `/login?next=${encodeURIComponent(`/products/${product.id}`)}`
                   }
                   className="btn-3d btn-3d-outline inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-semibold flex-1 sm:flex-none"

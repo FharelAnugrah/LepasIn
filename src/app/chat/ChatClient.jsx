@@ -26,6 +26,52 @@ import Badge, {
   formatRupiah,
 } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
+import { getSafeReturnUrl } from '@/lib/params';
+
+function getValidBrowserHistoryOrigin() {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const navEntries = window.navigation?.entries?.();
+    const currentEntry = window.navigation?.currentEntry;
+    if (Array.isArray(navEntries) && currentEntry) {
+      const prevEntry = navEntries[currentEntry.index - 1];
+      if (prevEntry?.url) {
+        const prevUrl = new URL(prevEntry.url);
+        if (prevUrl.origin === window.location.origin) {
+          const safePrevPath = getSafeReturnUrl(
+            `${prevUrl.pathname}${prevUrl.search}${prevUrl.hash}`
+          );
+          if (safePrevPath) {
+            return { mode: 'back', url: safePrevPath };
+          }
+        }
+      }
+    }
+  } catch {
+    // Abaikan jika browser tidak mendukung Navigation API atau URL tidak valid
+  }
+
+  if (document.referrer) {
+    try {
+      const refUrl = new URL(document.referrer);
+      if (refUrl.origin === window.location.origin) {
+        const safeRefPath = getSafeReturnUrl(
+          `${refUrl.pathname}${refUrl.search}${refUrl.hash}`
+        );
+        if (safeRefPath) {
+          return window.history.length > 1
+            ? { mode: 'back', url: safeRefPath }
+            : { mode: 'push', url: safeRefPath };
+        }
+      }
+    } catch {
+      // Abaikan jika referrer tidak valid
+    }
+  }
+
+  return null;
+}
 
 function ChatAvatar({ src, alt, isSellerPartner = true, size = 'md' }) {
   const [imgError, setImgError] = useState(false);
@@ -81,9 +127,15 @@ export default function ChatClient({
   initialStoreId = null,
   initialProductId = null,
   initialBuyerId = null,
+  initialReturnUrl = null,
 }) {
   const router = useRouter();
   const toast = useToast();
+
+  const safeReturnUrl = getSafeReturnUrl(initialReturnUrl);
+  const [enteredViaDeepLink, setEnteredViaDeepLink] = useState(() =>
+    Boolean(initialOrderId || initialStoreId)
+  );
 
   const [conversations, setConversations] = useState([]);
   const [activeTarget, setActiveTarget] = useState(() => {
@@ -200,6 +252,7 @@ export default function ChatClient({
     });
     setIsProductBannerDismissed(false);
     setProductImgError(false);
+    setEnteredViaDeepLink(Boolean(initialOrderId || initialStoreId));
 
     if (initialOrderId) {
       const nextTarget = {
@@ -402,6 +455,7 @@ export default function ChatClient({
 
     setIsProductBannerDismissed(false);
     setProductImgError(false);
+    setEnteredViaDeepLink(false);
     setActiveChat(null);
     setLoadingChat(true);
 
@@ -414,7 +468,7 @@ export default function ChatClient({
 
     const url = `/chat?store_id=${conv.store_id}${
       isOwnerOfStore && conv.buyer_id ? `&buyer_id=${conv.buyer_id}` : ''
-    }`;
+    }${safeReturnUrl ? `&returnUrl=${encodeURIComponent(safeReturnUrl)}` : ''}`;
     router.replace(url, { scroll: false });
   };
 
@@ -589,6 +643,50 @@ export default function ChatClient({
     return { key: 'general', label: '' };
   };
 
+  const fallbackInboxHref = safeReturnUrl
+    ? `/chat?returnUrl=${encodeURIComponent(safeReturnUrl)}`
+    : '/chat';
+
+  const resolveValidOriginTarget = () => {
+    if (safeReturnUrl) {
+      return { mode: 'push', url: safeReturnUrl };
+    }
+    return getValidBrowserHistoryOrigin();
+  };
+
+  const handleBackToOriginOrInbox = () => {
+    if (enteredViaDeepLink) {
+      const originTarget = resolveValidOriginTarget();
+      if (originTarget) {
+        if (originTarget.mode === 'back') {
+          router.back();
+        } else {
+          router.push(originTarget.url);
+        }
+        return;
+      }
+    }
+
+    setEnteredViaDeepLink(false);
+    setActiveTarget(null);
+    setIsProductBannerDismissed(false);
+    router.replace(fallbackInboxHref, { scroll: false });
+  };
+
+  const handleBackFromInbox = () => {
+    const originTarget = resolveValidOriginTarget();
+    if (originTarget) {
+      if (originTarget.mode === 'back') {
+        router.back();
+      } else {
+        router.push(originTarget.url);
+      }
+      return;
+    }
+
+    router.push(user?.role === 'seller' ? '/seller' : '/');
+  };
+
   return (
     <div className="w-full h-full min-h-0 surface-3d sm:rounded-2xl flex flex-col md:flex-row overflow-hidden">
       {/* Kolom Kiri: Daftar Percakapan (1 Room per Pasangan Pembeli <-> Toko) */}
@@ -597,13 +695,23 @@ export default function ChatClient({
           activeTarget ? 'hidden md:flex' : 'flex'
         }`}
       >
-        {/* Top Bar Kiri: Sejajar persis dengan Top Bar Kanan (h-[65px]) */}
-        <div className="h-[65px] min-h-[65px] px-4 border-b border-border-subtle bg-surface flex items-center justify-between shrink-0">
-          <h1 className="text-base font-bold text-ink flex items-center gap-2">
-            <MessageCircle className="w-5 h-5 text-brand-blue" aria-hidden="true" />
-            <span>Pesan dan Koordinasi</span>
-          </h1>
-          <span className="text-xs font-semibold bg-brand-blue-soft text-brand-blue px-2 py-0.5 rounded-md tabular-nums">
+        {/* Top Bar Kiri: Sejajar persis dengan Top Bar Kanan pada md+ */}
+        <div className="min-h-[65px] md:h-[65px] px-3 sm:px-4 py-2 md:py-0 border-b border-border-subtle bg-surface flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <button
+              type="button"
+              onClick={handleBackFromInbox}
+              className="md:hidden w-11 h-11 -ml-1.5 rounded-lg hover:bg-surface-muted text-ink-secondary hover:text-ink flex items-center justify-center shrink-0 transition-colors"
+              aria-label="Kembali ke halaman sebelumnya"
+            >
+              <ArrowLeft className="w-5 h-5" aria-hidden="true" />
+            </button>
+            <h1 className="text-base font-bold text-ink flex items-center gap-2 min-w-0">
+              <MessageCircle className="w-5 h-5 text-brand-blue shrink-0" aria-hidden="true" />
+              <span className="truncate">Pesan dan Koordinasi</span>
+            </h1>
+          </div>
+          <span className="text-xs font-semibold bg-brand-blue-soft text-brand-blue px-2 py-0.5 rounded-md tabular-nums shrink-0">
             {displayConversations.length}
           </span>
         </div>
@@ -768,7 +876,7 @@ export default function ChatClient({
       >
         {!activeTarget ? (
           <>
-            <div className="h-[65px] min-h-[65px] px-4 border-b border-border-subtle bg-surface hidden md:flex items-center shrink-0">
+            <div className="min-h-[65px] md:h-[65px] px-4 border-b border-border-subtle bg-surface hidden md:flex items-center shrink-0">
               <span className="text-xs font-semibold text-ink-muted">Ruang Percakapan</span>
             </div>
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-sm mx-auto">
@@ -783,7 +891,7 @@ export default function ChatClient({
           </>
         ) : loadingChat && !activeChat ? (
           <>
-            <div className="h-[65px] min-h-[65px] px-4 border-b border-border-subtle bg-surface hidden md:flex items-center shrink-0">
+            <div className="min-h-[65px] md:h-[65px] px-4 border-b border-border-subtle bg-surface hidden md:flex items-center shrink-0">
               <span className="text-xs font-semibold text-ink-muted">Memuat percakapan...</span>
             </div>
             <div className="flex-1 flex items-center justify-center text-xs text-ink-muted">
@@ -792,18 +900,14 @@ export default function ChatClient({
           </>
         ) : activeChat ? (
           <>
-            {/* Top Bar Chat: Sejajar persis dengan Top Bar Kiri (h-[65px]) */}
-            <div className="h-[65px] min-h-[65px] px-4 border-b border-border-subtle flex items-center justify-between gap-3 bg-surface shrink-0">
-              <div className="flex items-center gap-2.5 min-w-0">
+            {/* Top Bar Chat: fleksibel di mobile agar multi-baris badge tidak terpotong, sejajar 65px di md+ */}
+            <div className="min-h-[65px] md:h-[65px] px-3 sm:px-4 py-2.5 md:py-0 border-b border-border-subtle flex items-center justify-between gap-2 sm:gap-3 bg-surface shrink-0">
+              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveTarget(null);
-                    setIsProductBannerDismissed(false);
-                    router.replace('/chat', { scroll: false });
-                  }}
-                  className="md:hidden w-11 h-11 -ml-1.5 rounded-lg hover:bg-surface-muted text-ink-secondary hover:text-ink flex items-center justify-center shrink-0"
-                  aria-label="Kembali ke daftar pesan"
+                  onClick={handleBackToOriginOrInbox}
+                  className="md:hidden w-11 h-11 -ml-1.5 rounded-lg hover:bg-surface-muted text-ink-secondary hover:text-ink flex items-center justify-center shrink-0 transition-colors"
+                  aria-label="Kembali"
                 >
                   <ArrowLeft className="w-5 h-5" aria-hidden="true" />
                 </button>
@@ -819,7 +923,7 @@ export default function ChatClient({
                   size="sm"
                 />
 
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <h2 className="text-sm font-bold text-ink truncate">
                       {activeChat.partner?.name}
@@ -829,7 +933,7 @@ export default function ChatClient({
                     </Badge>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-muted mt-0.5">
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 text-xs text-ink-muted mt-0.5">
                     {displayedMode === 'order' && displayedOrder ? (
                       <>
                         <span className="tabular-nums font-semibold text-ink-secondary">
@@ -866,9 +970,14 @@ export default function ChatClient({
                 <button
                   type="button"
                   onClick={() => setIsOrderSummaryOpen(!isOrderSummaryOpen)}
-                  className="flex items-center gap-1 min-h-[38px] text-xs font-semibold text-brand-blue hover:bg-brand-blue-soft px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
+                  className="flex items-center gap-1 min-h-[44px] md:min-h-[38px] text-xs font-semibold text-brand-blue hover:bg-brand-blue-soft px-2 sm:px-2.5 py-1.5 rounded-lg transition-colors shrink-0 whitespace-nowrap"
                 >
-                  <span>{isOrderSummaryOpen ? 'Tutup Detail' : 'Detail Pesanan'}</span>
+                  <span className="sm:hidden">
+                    {isOrderSummaryOpen ? 'Tutup' : 'Detail'}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {isOrderSummaryOpen ? 'Tutup Detail' : 'Detail Pesanan'}
+                  </span>
                   {isOrderSummaryOpen ? (
                     <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" />
                   ) : (
@@ -878,10 +987,11 @@ export default function ChatClient({
               ) : activeChat.currentUser?.isBuyer && activeChat.store?.id ? (
                 <Link
                   href={`/stores/${activeChat.store.id}`}
-                  className="text-xs font-semibold text-ink-secondary hover:text-brand-blue px-3 py-2 min-h-[38px] rounded-lg hover:bg-canvas border border-border-subtle transition-colors shrink-0 inline-flex items-center gap-1.5"
+                  className="text-xs font-semibold text-ink-secondary hover:text-brand-blue px-2.5 sm:px-3 py-2 min-h-[44px] md:min-h-[38px] rounded-lg hover:bg-canvas border border-border-subtle transition-colors shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap"
                 >
                   <Store className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>Kunjungi Toko</span>
+                  <span className="sm:hidden">Toko</span>
+                  <span className="hidden sm:inline">Kunjungi Toko</span>
                 </Link>
               ) : null}
             </div>
@@ -954,7 +1064,7 @@ export default function ChatClient({
 
             {/* Banner Ringkasan Pesanan */}
             {displayedMode === 'order' && displayedOrder && isOrderSummaryOpen && (
-              <div className="bg-canvas border-b border-border-subtle px-4 py-3 text-xs flex flex-col gap-2.5 shrink-0">
+              <div className="bg-canvas border-b border-border-subtle px-3 sm:px-4 py-2.5 sm:py-3 text-xs flex flex-col gap-2.5 shrink-0 max-h-[42dvh] overflow-y-auto md:max-h-none md:overflow-visible">
                 {displayedOrder.delivery_method === 'meetup' && (
                   <div className="bg-info-bg border border-brand-blue-border rounded-lg p-3 flex items-start gap-2 text-ink">
                     <MapPin className="w-4 h-4 text-brand-blue shrink-0 mt-0.5" aria-hidden="true" />
@@ -1008,7 +1118,7 @@ export default function ChatClient({
             {/* Area Pesan Obrolan (Timeline Terpadu) */}
             <div
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-canvas"
+              className="flex-1 min-h-0 overflow-y-auto px-3 py-3 sm:p-4 flex flex-col gap-3 bg-canvas"
             >
               {activeChat.messages?.length === 0 ? (
                 <div className="my-auto text-center p-6 flex flex-col items-center">

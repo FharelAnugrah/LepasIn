@@ -248,51 +248,6 @@ export default function LoginForm() {
           </Link>
         </div>
       </div>
-
-      {/* Panel Akun Demo 3D */}
-      <div className="mt-5 p-4 rounded-2xl surface-3d text-xs">
-        <div className="flex items-center gap-1.5 font-bold text-ink mb-1.5">
-          <KeyRound className="w-3.5 h-3.5 text-brand-blue" aria-hidden="true" />
-          <span>Akun Demo Pengujian (Password: LepasIn123)</span>
-        </div>
-        <p className="text-ink-muted mb-3 leading-relaxed">
-          Pilih salah satu akun di bawah untuk mengisi email dan password secara otomatis:
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            onClick={() => setDemoAccount('admin@lepasin.id')}
-            className="chip-3d p-2.5 min-h-[44px] rounded-xl text-left"
-          >
-            <div className="font-bold text-ink">Admin</div>
-            <div className="text-[11px] text-ink-muted truncate">admin@lepasin.id</div>
-          </button>
-          <button
-            type="button"
-            onClick={() => setDemoAccount('dinda@lepasin.id')}
-            className="chip-3d p-2.5 min-h-[44px] rounded-xl text-left"
-          >
-            <div className="font-bold text-ink">Seller UNHAS</div>
-            <div className="text-[11px] text-ink-muted truncate">dinda@lepasin.id</div>
-          </button>
-          <button
-            type="button"
-            onClick={() => setDemoAccount('andi@lepasin.id')}
-            className="chip-3d p-2.5 min-h-[44px] rounded-xl text-left"
-          >
-            <div className="font-bold text-ink">Buyer UNHAS</div>
-            <div className="text-[11px] text-ink-muted truncate">andi@lepasin.id</div>
-          </button>
-          <button
-            type="button"
-            onClick={() => setDemoAccount('salsa@lepasin.id')}
-            className="chip-3d p-2.5 min-h-[44px] rounded-xl text-left"
-          >
-            <div className="font-bold text-ink">Seller Pending</div>
-            <div className="text-[11px] text-ink-muted truncate">salsa@lepasin.id</div>
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
 import CampusSelector from '@/components/ui/CampusSelector';
 import AccessibilityControl from '@/components/ui/AccessibilityControl';
 import { formatRupiah } from '@/components/ui/Badge';
+import { getSafeReturnUrl } from '@/lib/params';
 
 function NavbarItemImage({ src, alt }) {
   const [error, setError] = useState(false);
@@ -243,7 +244,7 @@ export default function Navbar({
   ) : null;
 
   return (
-    <header className="sticky top-0 z-40 navbar-3d">
+    <header className="sticky top-0 z-40 navbar-3d shrink-0">
       {/* Baris Utama Navbar (Tinggi 64px) */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-3">
         {/* Kiri: Brand Logo LepasIn + Campus Selector Pill */}
@@ -448,16 +449,25 @@ export default function Navbar({
           {/* Chat Koordinasi (akses utama menuju halaman Chat sesuai role pengguna) */}
           {user &&
             (user.role === 'buyer' ||
-              (user.role === 'seller' && user.seller_status === 'approved')) && (
-              <Link
-                href="/chat"
-                className="w-11 h-11 md:w-10 md:h-10 rounded-xl chip-3d flex items-center justify-center shrink-0"
-                aria-label="Pesan dan Chat"
-                title="Pesan dan Chat"
-              >
-                <MessageCircle className="w-4.5 h-4.5" aria-hidden="true" />
-              </Link>
-            )}
+              (user.role === 'seller' && user.seller_status === 'approved')) && (() => {
+              const currentQuery = searchParams.toString();
+              const currentPath = currentQuery ? `${pathname}?${currentQuery}` : pathname;
+              const safeChatReturnUrl = getSafeReturnUrl(currentPath);
+              const chatHref = safeChatReturnUrl
+                ? `/chat?returnUrl=${encodeURIComponent(safeChatReturnUrl)}`
+                : '/chat';
+
+              return (
+                <Link
+                  href={chatHref}
+                  className="w-11 h-11 md:w-10 md:h-10 rounded-xl chip-3d flex items-center justify-center shrink-0"
+                  aria-label="Pesan dan Chat"
+                  title="Pesan dan Chat"
+                >
+                  <MessageCircle className="w-4.5 h-4.5" aria-hidden="true" />
+                </Link>
+              );
+            })()}
 
           {user ? (
             showUserMenu ? (

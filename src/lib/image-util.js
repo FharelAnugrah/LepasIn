@@ -1,8 +1,5 @@
-export const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-export const MAX_IMAGE_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
-
 /**
- * Validasi magic bytes file gambar asli
+ * Validasi magic bytes file gambar asli (JPEG, PNG, WebP)
  */
 export function isValidImageMagicBytes(buffer, mimeType) {
   if (!buffer || buffer.length < 12) return false;
@@ -47,7 +44,7 @@ export function isValidImageMagicBytes(buffer, mimeType) {
  * @param {File|Blob|string} item
  * @returns {Promise<string>} Path atau URL gambar
  */
-export async function processImageInput(item) {
+async function processImageInput(item) {
   if (!item) return null;
 
   // Jika berupa objek File / Blob langsung pada payload produk (harus lewat /api/upload)

@@ -185,7 +185,7 @@ export default async function StoreProfilePage({ params }) {
             {user && user.id !== store.user_id && (
               <div className="mt-1">
                 <Link
-                  href={`/chat?store_id=${store.id}`}
+                  href={`/chat?store_id=${store.id}&returnUrl=${encodeURIComponent(`/stores/${store.id}`)}`}
                   className="btn-3d btn-3d-outline inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-xl px-3.5 py-2 text-xs font-semibold"
                 >
                   <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />

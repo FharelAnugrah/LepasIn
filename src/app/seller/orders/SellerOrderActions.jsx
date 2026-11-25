@@ -44,7 +44,7 @@ export default function SellerOrderActions({ orderId, currentStatus, deliveryMet
   return (
     <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-subtle">
       <Button
-        href={`/chat?order_id=${orderId}`}
+        href={`/chat?order_id=${orderId}&returnUrl=${encodeURIComponent('/seller/orders')}`}
         size="sm"
         variant="secondary"
         icon={MessageCircle}
