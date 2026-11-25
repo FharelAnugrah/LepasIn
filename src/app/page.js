@@ -219,8 +219,8 @@ export default async function HomePage({ searchParams }) {
           {/* Latar Belakang Animasi Bergerak Interaktif 3D (Luminous Aurora, Constellation Orbit, Isometric Grid & Parallax) */}
           <HeroAnimatedBackground />
 
-          {/* Badge Diskon Aksen Emas (Pojok Kanan Atas Banner) */}
-          <div className="hero-starburst-pulse absolute top-4 right-4 sm:top-6 sm:right-8 z-20 pointer-events-auto">
+          {/* Badge Diskon Aksen Emas (sudut kanan atas di atas headline pada mobile/tablet, pojok kanan atas pada desktop lg+) */}
+          <div className="hero-starburst-pulse relative z-20 px-6 pt-5 sm:px-8 sm:pt-7 lg:p-0 lg:absolute lg:top-6 lg:right-8 pointer-events-auto self-end">
             <span className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-campus-gold text-ink font-black text-[11px] sm:text-xs shadow-[0_4px_14px_rgba(251,191,36,0.35),0_2px_0_#B37903] border border-amber-200/90 select-none">
               <Sparkles className="w-3.5 h-3.5 fill-ink/20 shrink-0" aria-hidden="true" />
               <span className="tracking-tight whitespace-nowrap">Hemat s/d 70%</span>
@@ -228,7 +228,7 @@ export default async function HomePage({ searchParams }) {
           </div>
 
           {/* Bagian Atas Hero (Grid 2-Kolom: Teks Narasi & 3D Preloved Item Showcase) */}
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center p-6 sm:p-8 md:p-10">
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center px-6 pt-4 pb-6 sm:px-8 sm:pt-4 sm:pb-8 lg:p-10">
             {/* Sisi Kiri: Headline, Subheadline, Deskripsi, 2 Tombol CTA Pill 3D */}
             <div className="lg:col-span-7 flex flex-col gap-4 text-left">
               <h1 className="text-3xl sm:text-4xl lg:text-[2.65rem] xl:text-[2.85rem] font-extrabold tracking-tight leading-[1.18] text-white">
@@ -248,16 +248,16 @@ export default async function HomePage({ searchParams }) {
               </div>
 
               {/* 2 Tombol CTA Pill 3D Berdampingan */}
-              <div className="flex flex-wrap items-center gap-3.5 pt-1.5">
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3.5 pt-1.5">
                 <Link
                   href="/products"
-                  className="btn-3d btn-3d-accent inline-flex items-center justify-center min-h-[46px] font-bold text-sm rounded-full px-6 py-2.5 shadow-lg"
+                  className="btn-3d btn-3d-accent inline-flex items-center justify-center min-h-[44px] sm:min-h-[46px] font-bold text-xs sm:text-sm rounded-full px-4 sm:px-6 py-2.5 shadow-lg whitespace-nowrap"
                 >
                   <span>⚡ Jelajah Produk</span>
                 </Link>
                 <Link
                   href={secondaryCta.href}
-                  className="btn-3d btn-3d-frost inline-flex items-center justify-center min-h-[46px] font-semibold text-sm rounded-full px-6 py-2.5"
+                  className="btn-3d btn-3d-frost inline-flex items-center justify-center min-h-[44px] sm:min-h-[46px] font-semibold text-xs sm:text-sm rounded-full px-4 sm:px-6 py-2.5 whitespace-nowrap"
                 >
                   <span>{secondaryCta.label}</span>
                 </Link>

@@ -282,6 +282,19 @@ export default function ChatClient({
           ? prev
           : nextTarget
       );
+    } else {
+      const isDesktop =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(min-width: 768px)').matches;
+      setActiveTarget(
+        isDesktop && conversations.length > 0
+          ? {
+              type: 'room',
+              storeId: conversations[0].store_id,
+              buyerId: conversations[0].buyer_id || null,
+            }
+          : null
+      );
     }
   }
 
@@ -296,9 +309,13 @@ export default function ChatClient({
             const list = data.conversations || [];
             setConversations(list);
 
+            const isDesktop =
+              typeof window !== 'undefined' &&
+              window.matchMedia('(min-width: 768px)').matches;
+
             setActiveTarget((curr) => {
               if (curr) return curr;
-              if (list.length > 0) {
+              if (isDesktop && list.length > 0) {
                 const first = list[0];
                 return {
                   type: 'room',
