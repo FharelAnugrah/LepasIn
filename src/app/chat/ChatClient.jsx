@@ -27,6 +27,54 @@ import Badge, {
 } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 
+function ChatAvatar({ src, alt, isSellerPartner = true, size = 'md' }) {
+  const [imgError, setImgError] = useState(false);
+
+  const sizeClasses = size === 'sm' ? 'w-9 h-9 rounded-lg' : 'w-10 h-10 rounded-xl';
+  const iconClasses = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
+
+  if (!imgError && src) {
+    return (
+      <div
+        className={`relative ${sizeClasses} overflow-hidden shrink-0 border border-border-subtle bg-surface-muted`}
+      >
+        <Image
+          src={src}
+          alt={alt ?? (isSellerPartner ? 'Foto toko' : 'Foto pembeli')}
+          fill
+          unoptimized
+          decoding="async"
+          sizes={size === 'sm' ? '36px' : '40px'}
+          onError={() => setImgError(true)}
+          className="object-cover"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`${sizeClasses} ${
+        size === 'sm'
+          ? 'bg-brand-blue-soft text-brand-blue'
+          : 'bg-surface border border-border-subtle text-brand-blue'
+      } flex items-center justify-center shrink-0 font-bold`}
+    >
+      {isSellerPartner ? (
+        <Store
+          className={`${iconClasses} ${size === 'sm' ? '' : 'text-brand-blue'}`}
+          aria-hidden="true"
+        />
+      ) : (
+        <UserIcon
+          className={`${iconClasses} ${size === 'sm' ? '' : 'text-navy-900'}`}
+          aria-hidden="true"
+        />
+      )}
+    </div>
+  );
+}
+
 export default function ChatClient({
   user,
   initialOrderId = null,
@@ -603,6 +651,7 @@ export default function ChatClient({
                 (!c.buyer_id || !currentRoomBuyerId || currentRoomBuyerId === c.buyer_id);
 
               const partnerName = isUserTheBuyer ? c.store_name : c.buyer_name || 'Pembeli';
+              const partnerAvatarUrl = isUserTheBuyer ? c.store_image_url : c.buyer_avatar_url;
               const hasOrders = Number(c.total_orders_count || 0) > 0 && Boolean(c.latest_order_code);
               const key = `room-${c.store_id}-${c.buyer_id || idx}`;
 
@@ -615,13 +664,13 @@ export default function ChatClient({
                     isSelected ? 'bg-brand-blue-soft border-l-4 border-brand-blue' : 'hover:bg-surface'
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-surface border border-border-subtle flex items-center justify-center shrink-0 text-brand-blue font-bold">
-                    {isUserTheBuyer ? (
-                      <Store className="w-5 h-5 text-brand-blue" aria-hidden="true" />
-                    ) : (
-                      <UserIcon className="w-5 h-5 text-navy-900" aria-hidden="true" />
-                    )}
-                  </div>
+                  <ChatAvatar
+                    key={partnerAvatarUrl || `fallback-${key}`}
+                    src={partnerAvatarUrl}
+                    alt=""
+                    isSellerPartner={isUserTheBuyer}
+                    size="md"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
                       <span className="text-xs font-bold text-ink truncate">{partnerName}</span>
@@ -759,13 +808,16 @@ export default function ChatClient({
                   <ArrowLeft className="w-5 h-5" aria-hidden="true" />
                 </button>
 
-                <div className="w-9 h-9 rounded-lg bg-brand-blue-soft text-brand-blue flex items-center justify-center shrink-0 font-bold">
-                  {activeChat.currentUser?.isBuyer ? (
-                    <Store className="w-4 h-4" aria-hidden="true" />
-                  ) : (
-                    <UserIcon className="w-4 h-4" aria-hidden="true" />
-                  )}
-                </div>
+                <ChatAvatar
+                  key={
+                    activeChat.partner?.avatar_url ||
+                    `header-${activeChat.partner?.id || activeChat.store?.id || 'partner'}`
+                  }
+                  src={activeChat.partner?.avatar_url}
+                  alt=""
+                  isSellerPartner={Boolean(activeChat.currentUser?.isBuyer)}
+                  size="sm"
+                />
 
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">

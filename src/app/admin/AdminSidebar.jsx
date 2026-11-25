@@ -8,7 +8,6 @@ import {
   Tags,
   GraduationCap,
   Package,
-  ShieldCheck,
 } from 'lucide-react';
 import DashboardShell from '@/components/layout/DashboardShell';
 
@@ -55,20 +54,6 @@ export default function AdminSidebar({ user, pendingCount = 0, children }) {
     },
   ];
 
-  const identitySlot = (
-    <div className="p-3 rounded-2xl surface-3d flex items-center gap-3">
-      <div className="w-10 h-10 rounded-xl icon-plinth-navy text-campus-gold flex items-center justify-center shrink-0">
-        <ShieldCheck className="w-5 h-5" aria-hidden="true" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-bold text-ink truncate">{user.name}</p>
-        <p className="text-[11px] text-brand-blue font-semibold uppercase tracking-wider mt-0.5">
-          Super Admin
-        </p>
-      </div>
-    </div>
-  );
-
   return (
     <DashboardShell
       user={user}
@@ -76,7 +61,6 @@ export default function AdminSidebar({ user, pendingCount = 0, children }) {
       mobileNavAriaLabel="Menu admin"
       sectionTitle="Manajemen Platform"
       navItems={navItems}
-      identitySlot={identitySlot}
       logoutLabel="Keluar Akun"
     >
       {children}

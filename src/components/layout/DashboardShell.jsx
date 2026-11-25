@@ -19,7 +19,6 @@ export default function DashboardShell({
   mobileNavAriaLabel,
   sectionTitle,
   navItems = [],
-  identitySlot,
   catalogHref = null,
   catalogLabel = null,
   catalogIcon: CatalogIcon = ShoppingBag,
@@ -55,40 +54,36 @@ export default function DashboardShell({
           aria-label={navAriaLabel}
           className="hidden lg:flex lg:flex-col w-64 shrink-0 surface-3d rounded-2xl p-4 justify-between gap-6 sticky-sidebar-dashboard"
         >
-          <div className="flex flex-col gap-5">
-            {identitySlot}
-
-            <nav className="flex flex-col gap-1.5">
-              <p className="px-3 pb-1 text-[11px] font-semibold text-ink-muted uppercase tracking-wider">
-                {sectionTitle}
-              </p>
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={item.isActive ? 'page' : undefined}
-                    className={`flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-sm transition-all ${
-                      item.isActive
-                        ? 'nav-pill-3d-active font-semibold'
-                        : 'text-ink-secondary hover:bg-canvas hover:text-ink font-medium'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2.5 min-w-0">
-                      <Icon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
-                      <span className="truncate">{item.label}</span>
+          <nav className="flex flex-col gap-1.5">
+            <p className="px-3 pb-1 text-[11px] font-semibold text-ink-muted uppercase tracking-wider">
+              {sectionTitle}
+            </p>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={item.isActive ? 'page' : undefined}
+                  className={`flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-sm transition-all ${
+                    item.isActive
+                      ? 'nav-pill-3d-active font-semibold'
+                      : 'text-ink-secondary hover:bg-canvas hover:text-ink font-medium'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    <Icon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
+                    <span className="truncate">{item.label}</span>
+                  </span>
+                  {item.badge && (
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-campus-gold text-ink tabular-nums shrink-0">
+                      {item.badge}
                     </span>
-                    {item.badge && (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-campus-gold text-ink tabular-nums shrink-0">
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
 
           <div className="pt-4 border-t border-border-subtle flex flex-col gap-1">
             {catalogHref && catalogLabel && (

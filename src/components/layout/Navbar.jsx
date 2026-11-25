@@ -39,6 +39,33 @@ function NavbarItemImage({ src, alt }) {
   );
 }
 
+function NavbarUserAvatar({ src, name }) {
+  const [error, setError] = useState(false);
+
+  if (!error && src) {
+    return (
+      <span className="relative w-7 h-7 rounded-lg overflow-hidden shrink-0 border border-border-subtle bg-surface-muted block">
+        <Image
+          src={src}
+          alt={name || 'Avatar'}
+          fill
+          unoptimized
+          decoding="async"
+          onError={() => setError(true)}
+          className="object-cover"
+          sizes="28px"
+        />
+      </span>
+    );
+  }
+
+  return (
+    <span className="w-7 h-7 rounded-lg icon-plinth-navy text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
+      {name ? name.charAt(0) : 'U'}
+    </span>
+  );
+}
+
 export default function Navbar({
   user = null,
   cartCount: initialCartCount = 0,
@@ -199,22 +226,11 @@ export default function Navbar({
 
   const userBadgeContent = user ? (
     <>
-      {user.avatar_url ? (
-        <span className="relative w-7 h-7 rounded-lg overflow-hidden shrink-0 border border-border-subtle bg-surface-muted block">
-          <Image
-            src={user.avatar_url}
-            alt={user.name || 'Avatar'}
-            fill
-            unoptimized
-            className="object-cover"
-            sizes="28px"
-          />
-        </span>
-      ) : (
-        <span className="w-7 h-7 rounded-lg icon-plinth-navy text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
-          {user.name ? user.name.charAt(0) : 'U'}
-        </span>
-      )}
+      <NavbarUserAvatar
+        key={user.avatar_url || (user.role === 'seller' ? user.store_image_url : '') || 'fallback'}
+        src={user.avatar_url || (user.role === 'seller' ? user.store_image_url : null)}
+        name={user.name}
+      />
       <span className="hidden lg:flex flex-col text-left">
         <span className="text-xs font-semibold text-ink line-clamp-1 max-w-[110px]">
           {user.name}

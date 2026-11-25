@@ -1,15 +1,6 @@
 import Link from 'next/link';
 import {
   GraduationCap,
-  Cpu,
-  BedDouble,
-  Shirt,
-  BookOpen,
-  UtensilsCrossed,
-  Dumbbell,
-  Bike,
-  LayoutGrid,
-  Tag,
   Package,
   Handshake,
   ShieldCheck,
@@ -49,18 +40,6 @@ const PRODUCT_BASE_QUERY = `
   LEFT JOIN (SELECT product_id, ROUND(AVG(rating), 1)::float AS avg_rating, COUNT(*)::int AS review_count
              FROM reviews GROUP BY product_id) r ON r.product_id = p.id
 `;
-
-function getCategoryIcon(categoryName = '') {
-  const lower = categoryName.toLowerCase();
-  if (lower.includes('elektronik') || lower.includes('gadget')) return Cpu;
-  if (lower.includes('perabot') || lower.includes('kost') || lower.includes('kasur')) return BedDouble;
-  if (lower.includes('fashion') || lower.includes('pakaian')) return Shirt;
-  if (lower.includes('buku') || lower.includes('kuliah')) return BookOpen;
-  if (lower.includes('dapur') || lower.includes('makan')) return UtensilsCrossed;
-  if (lower.includes('olahraga') || lower.includes('hobi')) return Dumbbell;
-  if (lower.includes('kendaraan') || lower.includes('sepeda') || lower.includes('motor')) return Bike;
-  return Tag;
-}
 
 export default async function HomePage({ searchParams }) {
   const sp = await searchParams;
@@ -149,37 +128,10 @@ export default async function HomePage({ searchParams }) {
       recSql += ` AND p.category_id = $${recParams.length}`;
     }
 
-    recSql += ` ORDER BY p.created_at DESC LIMIT 8`;
+    recSql += ` ORDER BY p.created_at DESC LIMIT 4`;
 
     const recRes = await query(recSql, recParams);
     recommendations = recRes.rows;
-
-    if (selectedCampusId && recommendations.length < 4 && !isAllCampuses && !validCampusParam) {
-      const existingIds = recommendations.map((item) => item.id);
-      const needed = 8 - recommendations.length;
-      const fallbackParams = [needed];
-      let excludeClause = '';
-
-      if (existingIds.length > 0) {
-        fallbackParams.push(existingIds);
-        excludeClause += ` AND NOT (p.id = ANY($${fallbackParams.length}::int[]))`;
-      }
-      if (selectedCategoryId) {
-        fallbackParams.push(selectedCategoryId);
-        excludeClause += ` AND p.category_id = $${fallbackParams.length}`;
-      }
-
-      const fallbackRes = await query(
-        `${PRODUCT_BASE_QUERY}
-         WHERE p.stock > 0
-           AND p.is_deleted = FALSE
-           ${excludeClause}
-         ORDER BY RANDOM()
-         LIMIT $1`,
-        fallbackParams
-      );
-      recommendations = [...recommendations, ...fallbackRes.rows];
-    }
   } catch (err) {
     console.error('Error fetching recommendations:', err);
   }
@@ -188,7 +140,13 @@ export default async function HomePage({ searchParams }) {
   let latestProducts = [];
   try {
     const latestRes = await query(
-      `${PRODUCT_BASE_QUERY} WHERE p.is_deleted = FALSE ORDER BY p.created_at DESC LIMIT 8`
+      `${PRODUCT_BASE_QUERY}
+       WHERE p.is_deleted = FALSE
+       ORDER BY
+         CASE WHEN p.stock > 0 THEN 0 ELSE 1 END ASC,
+         p.created_at DESC,
+         p.id DESC
+       LIMIT 4`
     );
     latestProducts = latestRes.rows;
   } catch (err) {
@@ -227,29 +185,26 @@ export default async function HomePage({ searchParams }) {
         <nav aria-label="Kategori produk" className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1.5 px-0.5">
           <Link
             href={isAllCampuses ? '/?campus=all' : validCampusParam ? `/?campus=${validCampusParam}` : '/'}
-            className={`inline-flex items-center gap-1.5 min-h-[42px] rounded-xl px-4 py-2 text-xs whitespace-nowrap ${
+            className={`inline-flex items-center min-h-[42px] rounded-xl px-4 py-2 text-xs whitespace-nowrap ${
               !selectedCategoryId
                 ? 'chip-3d-active font-semibold'
                 : 'chip-3d font-medium'
             }`}
           >
-            <LayoutGrid className={`w-3.5 h-3.5 shrink-0 ${!selectedCategoryId ? 'text-campus-gold' : 'text-brand-blue'}`} aria-hidden="true" />
             <span>Semua Produk</span>
           </Link>
           {categories.map((cat) => {
-            const Icon = getCategoryIcon(cat.name);
             const isSelected = selectedCategoryId === cat.id;
             return (
               <Link
                 key={cat.id}
                 href={`/products?category=${cat.id}${selectedCampusId ? `&campus=${selectedCampusId}` : ''}`}
-                className={`inline-flex items-center gap-1.5 min-h-[42px] rounded-xl px-4 py-2 text-xs whitespace-nowrap ${
+                className={`inline-flex items-center min-h-[42px] rounded-xl px-4 py-2 text-xs whitespace-nowrap ${
                   isSelected
                     ? 'chip-3d-active font-semibold'
                     : 'chip-3d font-medium'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-campus-gold' : 'text-brand-blue'}`} aria-hidden="true" />
                 <span>{cat.name}</span>
               </Link>
             );
@@ -381,34 +336,26 @@ export default async function HomePage({ searchParams }) {
 
         {/* Section 1: Rekomendasi Kampus */}
         <section className="flex flex-col gap-5">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="hidden sm:flex w-10 h-10 rounded-xl icon-plinth-3d text-brand-blue items-center justify-center shrink-0 mt-0.5">
-                <GraduationCap className="w-5 h-5" aria-hidden="true" />
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg md:text-xl font-extrabold text-ink tracking-tight">
-                    Rekomendasi Kampus
-                  </h2>
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-lg bg-brand-blue-soft border border-brand-blue-border text-brand-blue shadow-[0_1.5px_0_#C5D6EA]">
-                    <GraduationCap className="w-3.5 h-3.5" aria-hidden="true" />
-                    <span>{selectedCampusObj ? selectedCampusObj.short_name : 'Semua Kampus'}</span>
-                  </span>
-                </div>
-                <p className="text-xs md:text-sm text-ink-muted mt-1">
-                  {selectedCampusObj
-                    ? `Barang preloved terdekat di area ${selectedCampusObj.short_name} (${selectedCampusObj.city}).`
-                    : 'Pilihan barang preloved yang siap COD atau dikirim dari berbagai kampus.'}
-                </p>
-              </div>
+          <div className="flex items-start gap-3">
+            <div className="hidden sm:flex w-10 h-10 rounded-xl icon-plinth-3d text-brand-blue items-center justify-center shrink-0 mt-0.5">
+              <GraduationCap className="w-5 h-5" aria-hidden="true" />
             </div>
-            <Link
-              href={`/products${selectedCampusId ? `?campus=${selectedCampusId}` : ''}`}
-              className="btn-3d btn-3d-secondary inline-flex items-center justify-center text-xs font-semibold px-3.5 py-2 rounded-xl shrink-0 self-start sm:self-auto"
-            >
-              Lihat semua produk
-            </Link>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg md:text-xl font-extrabold text-ink tracking-tight">
+                  Rekomendasi Kampus
+                </h2>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-lg bg-brand-blue-soft border border-brand-blue-border text-brand-blue shadow-[0_1.5px_0_#C5D6EA]">
+                  <GraduationCap className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>{selectedCampusObj ? selectedCampusObj.short_name : 'Semua Kampus'}</span>
+                </span>
+              </div>
+              <p className="text-xs md:text-sm text-ink-muted mt-1">
+                {selectedCampusObj
+                  ? `Barang preloved terdekat di area ${selectedCampusObj.short_name} (${selectedCampusObj.city}).`
+                  : 'Pilihan barang preloved yang siap COD atau dikirim dari berbagai kampus.'}
+              </p>
+            </div>
           </div>
 
           {recommendations.length === 0 ? (
@@ -423,41 +370,43 @@ export default async function HomePage({ searchParams }) {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {recommendations.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  isWishlisted={wishlistIds.has(product.id)}
-                  user={user}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                {recommendations.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    isWishlisted={wishlistIds.has(product.id)}
+                    user={user}
+                  />
+                ))}
+              </div>
+              <div className="flex justify-center pt-1">
+                <Link
+                  href={`/products${selectedCampusId ? `?campus=${selectedCampusId}` : ''}`}
+                  className="btn-3d btn-3d-secondary inline-flex items-center justify-center min-h-[42px] text-xs font-semibold px-10 py-2.5 rounded-xl"
+                >
+                  Lihat semua produk
+                </Link>
+              </div>
+            </>
           )}
         </section>
 
         {/* Section 2: Baru Dilepas */}
         <section className="flex flex-col gap-5">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="hidden sm:flex w-10 h-10 rounded-xl icon-plinth-navy text-campus-gold items-center justify-center shrink-0 mt-0.5">
-                <Package className="w-5 h-5" aria-hidden="true" />
-              </div>
-              <div>
-                <h2 className="text-lg md:text-xl font-extrabold text-ink tracking-tight">
-                  Baru Dilepas Mahasiswa
-                </h2>
-                <p className="text-xs md:text-sm text-ink-muted mt-1">
-                  Unggahan terbaru dari kamar kost dan asrama Mahasiswa se-Indonesia.
-                </p>
-              </div>
+          <div className="flex items-start gap-3">
+            <div className="hidden sm:flex w-10 h-10 rounded-xl icon-plinth-navy text-campus-gold items-center justify-center shrink-0 mt-0.5">
+              <Package className="w-5 h-5" aria-hidden="true" />
             </div>
-            <Link
-              href="/products"
-              className="btn-3d btn-3d-secondary inline-flex items-center justify-center text-xs font-semibold px-3.5 py-2 rounded-xl shrink-0 self-start sm:self-auto"
-            >
-              Buka katalog lengkap
-            </Link>
+            <div>
+              <h2 className="text-lg md:text-xl font-extrabold text-ink tracking-tight">
+                Baru Dilepas Mahasiswa
+              </h2>
+              <p className="text-xs md:text-sm text-ink-muted mt-1">
+                Unggahan terbaru dari kamar kost dan asrama Mahasiswa se-Indonesia.
+              </p>
+            </div>
           </div>
 
           {latestProducts.length === 0 ? (
@@ -465,16 +414,26 @@ export default async function HomePage({ searchParams }) {
               Belum ada barang baru yang diunggah.
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {latestProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  isWishlisted={wishlistIds.has(product.id)}
-                  user={user}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                {latestProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    isWishlisted={wishlistIds.has(product.id)}
+                    user={user}
+                  />
+                ))}
+              </div>
+              <div className="flex justify-center pt-1">
+                <Link
+                  href="/products"
+                  className="btn-3d btn-3d-secondary inline-flex items-center justify-center min-h-[42px] text-xs font-semibold px-10 py-2.5 rounded-xl"
+                >
+                  Buka katalog lengkap
+                </Link>
+              </div>
+            </>
           )}
         </section>
       </main>

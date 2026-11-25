@@ -25,9 +25,10 @@ async function loadUnifiedRoom({
   focusedProductId = null,
 }) {
   const storeRes = await query(
-    `SELECT s.id, s.name AS store_display_name, s.location AS store_location, s.user_id AS seller_user_id,
+    `SELECT s.id, s.name AS store_display_name, s.location AS store_location, s.image_url AS store_image_url,
+            s.user_id AS seller_user_id,
             c.name AS campus_name, c.short_name AS campus_short_name,
-            u.name AS seller_full_name, u.seller_status
+            u.name AS seller_full_name, u.avatar_url AS seller_avatar_url, u.seller_status
      FROM stores s
      LEFT JOIN campuses c ON c.id = s.campus_id
      LEFT JOIN users u ON u.id = s.user_id
@@ -65,12 +66,15 @@ async function loadUnifiedRoom({
   }
 
   let partnerName = store.store_display_name || store.seller_full_name || 'Penjual';
+  let partnerAvatarUrl = store.store_image_url || store.seller_avatar_url || null;
   if (isSeller) {
     if (buyerId) {
-      const buyerRes = await query(`SELECT name FROM users WHERE id = $1`, [buyerId]);
+      const buyerRes = await query(`SELECT name, avatar_url FROM users WHERE id = $1`, [buyerId]);
       partnerName = buyerRes.rows[0]?.name || 'Pembeli';
+      partnerAvatarUrl = buyerRes.rows[0]?.avatar_url || null;
     } else {
       partnerName = 'Belum ada pembeli';
+      partnerAvatarUrl = null;
     }
   }
 
@@ -195,11 +199,13 @@ async function loadUnifiedRoom({
             id: store.seller_user_id,
             name: store.store_display_name || store.seller_full_name || 'Penjual',
             role: 'seller',
+            avatar_url: store.store_image_url || store.seller_avatar_url || null,
           }
         : {
             id: buyerId || null,
             name: partnerName,
             role: 'buyer',
+            avatar_url: partnerAvatarUrl,
           },
     },
   };
@@ -335,8 +341,10 @@ export async function GET(request) {
         pa.last_message_time,
         pa.last_chat_order_id,
         s.name AS store_name,
+        COALESCE(NULLIF(s.image_url, ''), NULLIF(su.avatar_url, '')) AS store_image_url,
         c.short_name AS campus_short_name,
         COALESCE(bu.name, 'Pembeli') AS buyer_name,
+        NULLIF(bu.avatar_url, '') AS buyer_avatar_url,
         lo.id AS latest_order_id,
         lo.order_code AS latest_order_code,
         lo.status AS latest_order_status,
@@ -364,6 +372,7 @@ export async function GET(request) {
         ) AS searchable_order_codes
       FROM pair_agg pa
       JOIN stores s ON s.id = pa.store_id
+      LEFT JOIN users su ON su.id = s.user_id
       LEFT JOIN campuses c ON c.id = s.campus_id
       LEFT JOIN users bu ON bu.id = pa.buyer_id
       LEFT JOIN LATERAL (
